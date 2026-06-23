@@ -1,0 +1,6 @@
+{
+  "name": "chandoff",
+  "description": "Write a project-tuned compaction rubric before /compact fires, so the summarizer keeps what's load-bearing in your session. Drafts the rubric, writes a durable lore handoff, emits a paste-ready /compact block.",
+  "author": { "name": "apoage" },
+  "version": "0.1.0"
+}

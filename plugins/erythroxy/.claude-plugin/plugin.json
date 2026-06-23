@@ -1,0 +1,6 @@
+{
+  "name": "erythroxy",
+  "description": "JAX/GPU development under tight VRAM/RAM limits: fight OOM and systemd-oomd, VRAM-resident design (live in VRAM while the host thrashes), chunk/stream to bound memory, tune XLA, write fast gathers, avoid recompiles and host-device thrash.",
+  "author": { "name": "apoage" },
+  "version": "0.1.0"
+}

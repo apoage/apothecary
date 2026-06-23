@@ -1,0 +1,6 @@
+{
+  "name": "feverfew",
+  "description": "Rigorous ML/quant experiment discipline: leakage guards (causal features, label/input separation, purged forward splits), value-identity on reused code, correct holding-period Sharpe, pre-registered grids/gates, smoke-first validation, OOM-safety by construction, audit-from-artifacts, honest nulls.",
+  "author": { "name": "apoage" },
+  "version": "0.1.0"
+}

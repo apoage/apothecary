@@ -1,6 +1,6 @@
 {
   "name": "erythroxy",
-  "description": "JAX/GPU development under tight VRAM/RAM limits: fight OOM and systemd-oomd, VRAM-resident design (live in VRAM while the host thrashes), chunk/stream to bound memory, tune XLA, write fast gathers, avoid recompiles and host-device thrash.",
+  "description": "JAX/GPU on small hardware — defense AND offense. Defense: beat OOM/systemd-oomd, VRAM-resident design (live in VRAM while the host thrashes), chunk/stream, XLA tuning. Offense: the memory hierarchy as a pipeline (generate on-the-fly in VRAM, never read disk in the loop), async data overlap, periodic checkpointing, batch-axis parallelism, and saturating every FLOP (GPU on gradients, everything else offloaded).",
   "author": { "name": "apoage" },
   "version": "0.1.0"
 }

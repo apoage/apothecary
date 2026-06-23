@@ -19,7 +19,7 @@
     {
       "name": "erythroxy",
       "source": "erythroxy",
-      "description": "JAX/GPU performance under tight VRAM/RAM — VRAM-resident design (live in VRAM while the host thrashes), beating systemd-oomd, chunk/stream, XLA tuning, fast gathers, no recompiles or host-device thrash. The apothecary's performance stimulant.",
+      "description": "JAX/GPU on small hardware, defense AND offense. Defense: VRAM-resident design (live in VRAM while the host thrashes), beating systemd-oomd, chunk/stream, XLA tuning. Offense: the memory hierarchy as a pipeline (generate on-the-fly in VRAM, never read disk in the loop), async overlap, periodic checkpoints, batch-axis parallelism, saturate every FLOP. The apothecary's performance stimulant.",
       "category": "machine-learning"
     },
     {

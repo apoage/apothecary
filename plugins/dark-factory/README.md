@@ -34,6 +34,10 @@
               t h e   l i n e   i s   r u n n i n g .
 ```
 
+*Codename: **moonflower** — the night-blooming datura: powerful, careful-handling-required,
+and it only opens in the dark. Its entry in the apothecary's garden ledger; the working name
+stays dark-factory.*
+
 An autonomous implementer loop for Claude Code: a ranked task queue, a build agent, a
 risk-tiered panel of adversarial verifiers, and a release ritual — running unattended while
 the humans (and the planner thread) sleep. Extracted from a real project where it shipped a

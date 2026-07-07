@@ -6,31 +6,28 @@
     "name": "apoage",
     "url": "https://github.com/apoage"
   },
-  "metadata": {
-    "pluginRoot": "./plugins"
-  },
   "plugins": [
     {
       "name": "feverfew",
-      "source": "feverfew",
+      "source": "./plugins/feverfew",
       "description": "Rigorous ML/quant experiment discipline — leakage guards, value-identity on reused code, correct holding-period Sharpe, pre-registered grids/gates, smoke-first, OOM-safety, audit-from-artifacts, honest nulls. The herb that guards the run.",
       "category": "machine-learning"
     },
     {
       "name": "erythroxy",
-      "source": "erythroxy",
+      "source": "./plugins/erythroxy",
       "description": "JAX/GPU on small hardware, defense AND offense. Defense: VRAM-resident design (live in VRAM while the host thrashes), beating systemd-oomd, chunk/stream, XLA tuning. Offense: the memory hierarchy as a pipeline (generate on-the-fly in VRAM, never read disk in the loop), async overlap, periodic checkpoints, batch-axis parallelism, saturate every FLOP. The apothecary's performance stimulant.",
       "category": "machine-learning"
     },
     {
       "name": "chandoff",
-      "source": "chandoff",
+      "source": "./plugins/chandoff",
       "description": "Project-tuned compaction rubric written before /compact fires — keep what's load-bearing in your session; writes a durable lore handoff and a paste-ready /compact block.",
       "category": "workflow"
     },
     {
       "name": "dark-factory",
-      "source": "dark-factory",
+      "source": "./plugins/dark-factory",
       "description": "The autonomous implementer loop — ranked task queue, build agent, risk-tiered adversarial verifier panel, release ritual — behind hook-enforced guard rails: single-writer lane guard, fail-closed commit gate, no-push wall, exit-ritual stop gate. Bigger than a skill: ships /dark-factory + four agents + five hooks as one plugin; every project specific is a {{variable}} in .dark-factory/config.json. The shelf's night shift, codename moonflower — it blooms only in the dark.",
       "category": "workflow"
     }

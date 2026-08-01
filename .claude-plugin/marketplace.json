@@ -28,7 +28,7 @@
     {
       "name": "dark-factory",
       "source": "./plugins/dark-factory",
-      "description": "The autonomous implementer loop — ranked task queue, build agent, risk-tiered adversarial verifier panel, release ritual — behind hook-enforced guard rails: single-writer lane guard, fail-closed commit gate, no-push wall, exit-ritual stop gate. Bigger than a skill: ships /dark-factory + four agents + five hooks as one plugin; every project specific is a {{variable}} in .dark-factory/config.json. The shelf's night shift, codename moonflower — it blooms only in the dark.",
+      "description": "The autonomous implementer loop — ranked task queue, build agent, risk-tiered adversarial verifier panel, release ritual — behind hook-enforced guard rails: single-writer lane guard, fail-closed commit gate, no-push wall, exit-ritual stop gate. Bigger than a skill: ships /dark-factory + four agents + five hooks as one plugin; every project specific is a {{variable}} in .dark-factory/config.json. Dual-harness: the same directory also serves Kimi Code (kimi.plugin.json). The shelf's night shift, codename moonflower — it blooms only in the dark.",
       "category": "workflow"
     }
   ]

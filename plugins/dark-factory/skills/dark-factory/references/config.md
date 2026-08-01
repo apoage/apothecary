@@ -32,6 +32,8 @@ The single place a project teaches the factory its specifics. Committed, planner
 | `guards.verdict_max_age_minutes` | How fresh the verdict must be at commit time | `60` |
 | `guards.halt_after_failures` | Failed fix→verify cycles before the task HALTs to a DECISIONS row | `3` |
 | `verification.risk_tiers` | Panel composition per declared task risk (`judge:<lens>`, `flow-verifier`) | see template |
+| `models` | **Optional.** Model per subagent role, passed as the Agent tool's `model` at spawn. Omit the whole block and every subagent inherits the armed session's model — the pre-existing behaviour. Names are harness-specific; Kimi has no per-spawn override today, so there the block is advisory | see template |
+| `models.escalate_to` | Model a task escalates to after a failed fix→verify cycle | `"opus"` |
 
 ## Design notes
 
@@ -43,3 +45,8 @@ The single place a project teaches the factory its specifics. Committed, planner
   destruction.
 - **Why is the verdict freshness-checked?** A verdict older than the code it approves is
   a lie with a timestamp. The gate compares mtimes, not intentions.
+- **Why escalate the model instead of just running the big one?** Same cost model as the
+  risk tiers, one level down: most queue tasks are specced tightly enough that a mid-tier
+  model executes them exactly, and the ones that aren't announce themselves by failing.
+  Paying top-tier rates on every task to cover the minority that need it is the constant
+  3-judge panel again. The failure signal is free — use it.

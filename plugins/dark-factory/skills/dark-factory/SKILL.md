@@ -16,6 +16,16 @@ project root. Any `{{key}}` in this skill or the `dark-factory-*` agents is a va
 resolving from that file (dotted = nested: `{{commands.test}}`, `{{paths.queue}}`).
 Read the config before anything else, every run.
 
+**Dual-harness.** This one plugin serves both Claude Code (`.claude-plugin/plugin.json`)
+and Kimi Code (`kimi.plugin.json`) — same hooks, same `.dark-factory/` state. A Claude
+session and a Kimi session can run against the SAME project: whichever session arms
+becomes the implementer of record, and the lane guard holds the other to planner lanes
+on either harness. The `dark-factory-*` agent files ship in `agents/` for both; if your
+harness doesn't surface plugin agents, spawn an ordinary subagent with the same brief —
+the task-file path for implementation; for judges the lens, the diff, and "assume the
+change cut a new hole and go find it". Hooks are fail-open on both harnesses: they are
+lane markings, never the security boundary.
+
 ## First run — setup (only if `.dark-factory/config.json` is missing)
 
 1. Inspect the repo (test runner, version file, changelog, fixtures, UI or not) and draft
@@ -53,23 +63,54 @@ When a hook denies you, it is right — do what the reason says; never work arou
 5. If the user passed steering args, they override queue order (never invariants).
 6. **Arm**: run `true # dark-factory-arm`. From here the guard rail is live.
 
+## Model policy — cheap by default, escalate on failure
+
+`{{models}}` says which model each subagent runs on. Pass it as the Agent tool's `model`
+parameter at spawn time. **If the key is absent, spawn with no model override** — the
+subagent inherits this session's model, which is the behaviour every project had before
+this key existed. Model names are harness-specific (Claude: `sonnet`/`opus`/`haiku`;
+Kimi: its own names — and Kimi's Agent tool has no per-spawn model override today, so
+there the policy is advisory and subagents inherit the session model).
+
+| Cycle on a task | Implementer | Verification panel |
+|---|---|---|
+| 1 — first implement + verify | `{{models.implementer}}` | `{{models.judge}}` · `{{models.flow_verifier}}` · `{{models.visual_judge}}` |
+| 2 — first fix pass | `{{models.escalate_to}}` | unchanged |
+| 3 — last cycle before HALT | `{{models.escalate_to}}` | `{{models.escalate_to}}` |
+
+A cycle counts as **failed** when the panel returns a BLOCKER/MAJOR, when `{{commands.test}}`
+is red, **or when the implementer reports it could not complete the task's scope** — all
+three escalate the same way. Escalation is per task and resets at the next task.
+
+Two things escalation is not. It is not a way to buy a green from a task that is actually
+blocked on an OPEN decision or on missing real data — a bigger model does not turn a wall
+into work; halt to a DECISIONS row per `{{guards.halt_after_failures}}`. And it is not
+retroactive: an escalated pass re-verifies from the current tree, it does not re-open what
+an earlier cycle already proved green.
+
+Name in the wrap-up which tasks needed an escalated cycle. A task that only goes green on
+the big model is a signal about the task file, not just about the model.
+
 ## Per-task loop
 
 1. **Pick** the next unblocked task. Skip anything gated on an OPEN decision or missing
    real data (note it, move on).
 2. **Implement by delegation**: spawn **`dark-factory-implementer`** with the task-file
-   path; the task file is the spec — don't re-derive scope. Parallelize independent tasks
-   only when their files are disjoint.
+   path and `model: {{models.implementer}}` (harness permitting — see the model policy);
+   the task file is the spec — don't re-derive scope. Parallelize independent tasks only
+   when their files are disjoint.
 3. **Verify — never self-review.** The writing context is the weakest reviewer. Pick the
    panel from `{{verification.risk_tiers}}` by the task's declared size/risk (default:
    medium). `judge:<lens>` = one **`dark-factory-judge`** with that lens;
    `flow-verifier` = **`dark-factory-flow-verifier`**; UI-touching changes add
-   **`dark-factory-visual-judge`** when `{{ui.enabled}}`. Run panel members in parallel.
-   Objective checks outrank judge opinion: a green suite + verified artifact claims beat
-   a judge's hunch, and a failing test overrides any judge's approval.
-4. **Fix pass** from findings; re-verify what changed. After
-   `{{guards.halt_after_failures}}` failed fix→verify cycles on one task: STOP that task,
-   seed a DECISIONS row with what you learned, move on.
+   **`dark-factory-visual-judge`** when `{{ui.enabled}}`. Run panel members in parallel,
+   each on its model from the policy above. Objective checks outrank judge opinion: a green
+   suite + verified artifact claims beat a judge's hunch, and a failing test overrides any
+   judge's approval.
+4. **Fix pass** from findings; re-verify what changed — spawning the fix implementer at the
+   escalated model per the policy above. After `{{guards.halt_after_failures}}` failed
+   fix→verify cycles on one task: STOP that task, seed a DECISIONS row with what you
+   learned, move on.
 5. **Write the verdict** to `.dark-factory/verdicts/current.json` — the commit gate reads
    it (fail-closed):
    ```json
@@ -78,9 +119,13 @@ When a hook denies you, it is right — do what the reason says; never work arou
      "green": true,
      "panel": {"correctness": "no findings", "regression": "2 found, 2 fixed, re-verified"},
      "suite": "142 passed",
+     "cycles": 2,
+     "models": "implement=sonnet, fix=opus, panel=sonnet",
      "written_at": "<ISO timestamp>"
    }
    ```
+   `cycles`/`models` only when `{{models}}` is set — a green verdict should say what
+   produced it.
    `green: true` only when every BLOCKER/MAJOR is fixed and re-verified. Never write a
    green verdict you cannot defend line by line — the gate trusts you; the planner audits.
 6. **Release ritual**: bump `{{paths.version_file}}` → entry in `{{paths.changelog}}` →
@@ -101,7 +146,8 @@ load-bearing features on guessed decisions; seed the DECISIONS row instead. Then
 2. A dated handoff doc in `{{paths.handoff_dir}}`, committed with the work.
 3. Clean tree. Nothing pushed.
 4. **Disarm**: run `true # dark-factory-disarm`. The stop gate will not let you end the
-   turn armed — that is by design, not an obstacle.
+   turn armed — that is by design, not an obstacle. (Kimi: the gate blocks once per
+   arming, then lets a stop through rather than risking a trapped session.)
 
 ## Validation tiers
 

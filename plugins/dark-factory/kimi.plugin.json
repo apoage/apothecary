@@ -1,0 +1,37 @@
+{
+  "name": "dark-factory",
+  "version": "0.3.0",
+  "description": "The autonomous implementer loop — a ranked task queue, adversarial verification, a release ritual — behind hook-enforced guard rails: single-writer lane guard, fail-closed commit gate, no-push wall, stop-gate exit ritual. Dual-harness: one plugin directory serves both Claude Code (.claude-plugin/plugin.json) and Kimi Code (this manifest); both read the same .dark-factory/ state, so the two harnesses can run on the same repo.",
+  "author": { "name": "apoage" },
+  "license": "MIT",
+  "skills": "./skills/",
+  "hooks": [
+    {
+      "event": "PreToolUse",
+      "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+      "command": "python3 ./hooks/lane_guard.py",
+      "timeout": 5
+    },
+    {
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "command": "python3 ./hooks/bash_gate.py",
+      "timeout": 5
+    },
+    {
+      "event": "PostToolUse",
+      "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
+      "command": "python3 ./hooks/run_log.py",
+      "timeout": 5
+    },
+    {
+      "event": "Stop",
+      "command": "python3 ./hooks/stop_gate.py",
+      "timeout": 5
+    }
+  ],
+  "interface": {
+    "displayName": "Dark Factory",
+    "shortDescription": "The autonomous implementer loop behind hook-enforced guard rails."
+  }
+}

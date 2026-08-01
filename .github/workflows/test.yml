@@ -1,0 +1,9 @@
+name: test
+on: [push, pull_request]
+jobs:
+  hooks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: dark-factory hook suite (both harness envelopes)
+        run: bash plugins/dark-factory/tests/test-hooks.sh

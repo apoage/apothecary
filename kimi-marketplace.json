@@ -1,0 +1,10 @@
+{
+  "version": "2",
+  "plugins": [
+    {
+      "id": "dark-factory",
+      "displayName": "Dark Factory",
+      "source": "./plugins/dark-factory"
+    }
+  ]
+}

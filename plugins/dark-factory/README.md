@@ -38,16 +38,26 @@
 and it only opens in the dark. Its entry in the apothecary's garden ledger; the working name
 stays dark-factory.*
 
-An autonomous implementer loop for Claude Code: a ranked task queue, a build agent, a
-risk-tiered panel of adversarial verifiers, and a release ritual — running unattended while
-the humans (and the planner thread) sleep. Extracted from a real project where it shipped a
-working queue end-to-end; rebuilt project-neutral, with the contract's high-risk rules moved
-from prompt-discipline into **hooks the loop cannot ignore**.
+An autonomous implementer loop for Claude Code and Kimi Code: a ranked task queue, a
+build agent, a risk-tiered panel of adversarial verifiers, and a release ritual — running
+unattended while the humans (and the planner thread) sleep. Extracted from a real project
+where it shipped a working queue end-to-end; rebuilt project-neutral, with the contract's
+high-risk rules moved from prompt-discipline into **hooks the loop cannot ignore**.
+
+**Dual-harness.** This directory is one plugin with two manifests: Claude Code reads
+`.claude-plugin/plugin.json`, Kimi Code reads `kimi.plugin.json` — same hooks, same skill,
+same `.dark-factory/` state, so a Claude session and a Kimi session can run against the
+same repo (whichever arms is the implementer of record; the other is held to planner
+lanes). Install: Claude — via the apothecary marketplace; Kimi —
+`/plugins install https://github.com/apoage/apothecary` (or `/plugins marketplace` with
+this repo's `kimi-marketplace.json`).
 
 ## What's in the box
 
 ```
 dark-factory/
+├── .claude-plugin/plugin.json       ← Claude Code manifest
+├── kimi.plugin.json                 ← Kimi Code manifest (same hooks, same skill)
 ├── skills/dark-factory/
 │   ├── SKILL.md                     ← the loop itself (/dark-factory)
 │   └── references/
@@ -67,6 +77,8 @@ dark-factory/
 │   ├── bash_gate.py                 ← arm/disarm · no-push wall · fail-closed commit gate
 │   ├── stop_gate.py                 ← no ending the turn armed: ritual, then disarm
 │   └── run_log.py                   ← JSONL telemetry for the morning reconcile
+├── tests/
+│   └── test-hooks.sh                ← synthetic-payload suite, both harness envelopes
 └── docs/
     ├── RESEARCH.md                  ← the comparative review that shaped v0.2
     └── examples/                    ← live queue/decisions/playbook files from the source project

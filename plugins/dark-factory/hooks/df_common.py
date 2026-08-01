@@ -1,12 +1,19 @@
-"""Shared helpers for dark-factory hooks.
+"""Shared helpers for dark-factory hooks. Dual-harness (Claude Code / Kimi Code).
 
 stdlib only. Guards fail OPEN on unexpected errors (a broken guard must not brick
 the session) — except the git gate's verdict check, where failing closed is the point.
 
-State model:
+State model (one plugin serves both harnesses — both read the same files,
+which is what makes "two harnesses, one repo" work):
   <root>/.dark-factory/config.json   committed, planner-owned, per-project settings
   <root>/.dark-factory/state.json    runtime: {armed, implementer_session, armed_at}
   <root>/.dark-factory/verdicts/current.json   written after fan-out verification
+
+Envelope compatibility:
+  Both harnesses post a JSON payload on stdin with snake_case fields
+  (session_id, cwd, tool_name, tool_input). The deny JSON below is understood by
+  both; exit 2 + stderr is honored by both as a block with the reason fed back
+  to the model.
 """
 import json
 import os
@@ -64,8 +71,18 @@ def get_state(root):
     return load_json(state_path(root), {}) or {}
 
 
+def tool_file_path(tool_input):
+    """The file a write/edit tool targets, across harness tool schemas.
+
+    Claude's Write/Edit/MultiEdit/NotebookEdit carry ``file_path`` /
+    ``notebook_path``; Kimi's Write/Edit carry ``path``.
+    """
+    return (tool_input.get("file_path") or tool_input.get("notebook_path")
+            or tool_input.get("path") or "")
+
+
 def deny(reason):
-    """PreToolUse deny — the reason is fed back to the model."""
+    """PreToolUse deny — the reason is fed back to the model. Valid on both harnesses."""
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -74,6 +91,18 @@ def deny(reason):
         }
     }))
     sys.exit(0)
+
+
+def block_stop(reason):
+    """Stop-hook block, portable: reason on stderr, exit 2.
+
+    Upstream emits ``{"decision": "block", "reason": ...}`` on stdout, which is
+    the Claude-only form; exit 2 + stderr carries the same semantic on both
+    harnesses (Kimi documents it as the block contract; Claude treats it the
+    same for Stop hooks).
+    """
+    sys.stderr.write(reason + "\n")
+    sys.exit(2)
 
 
 def allow():

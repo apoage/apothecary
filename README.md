@@ -1,6 +1,6 @@
-# 🜍 Apothecary — a Claude Code skill marketplace
+# 🜍 Apothecary — a Claude Code / Kimi Code skill marketplace
 
-An apothecary's shelf of Claude Code skills: careful remedies for machine-learning / quant
+An apothecary's shelf of agent skills: careful remedies for machine-learning / quant
 work and long agent sessions. **Medicinal plants, not dark** — careful work with powerful tools.
 
 ## The shelf
@@ -28,18 +28,29 @@ experiment. `dark-factory` is what runs while the apothecary sleeps.
 
 Update later with `/plugin marketplace update apothecary`.
 
+**Kimi Code:** `dark-factory` is dual-harness — the same plugin directory carries a
+`kimi.plugin.json` alongside the Claude manifest:
+
+```
+/plugins marketplace https://raw.githubusercontent.com/apoage/apothecary/main/kimi-marketplace.json
+```
+
+(or `/plugins install https://github.com/apoage/apothecary` for the repo directly).
+
 ## Layout
 
 ```
-.claude-plugin/marketplace.json     # the catalog (marketplace name: "apothecary")
+.claude-plugin/marketplace.json     # the Claude catalog (marketplace name: "apothecary")
+kimi-marketplace.json               # the Kimi catalog (/plugins marketplace <path-or-url>)
 plugins/
   feverfew/     .claude-plugin/plugin.json   skills/feverfew/SKILL.md
   erythroxy/    .claude-plugin/plugin.json   skills/erythroxy/SKILL.md
   chandoff/     .claude-plugin/plugin.json   skills/chandoff/SKILL.md
-  dark-factory/ .claude-plugin/plugin.json   skills/dark-factory/SKILL.md (+references/)
+  dark-factory/ .claude-plugin/plugin.json + kimi.plugin.json   ← dual-harness
+                skills/dark-factory/SKILL.md (+references/)
                 agents/dark-factory-{implementer,judge,flow-verifier,visual-judge}.md
                 hooks/hooks.json + lane_guard.py bash_gate.py stop_gate.py run_log.py
-                docs/RESEARCH.md + examples/
+                tests/test-hooks.sh   docs/RESEARCH.md + examples/
 ```
 
 ## Provenance

@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """dark-factory lane guard — PreToolUse on Write|Edit|MultiEdit|NotebookEdit.
 
+Dual-harness (Claude Code / Kimi Code): the target file is read from
+``file_path`` / ``notebook_path`` (Claude) or ``path`` (Kimi) — see
+``df_common.tool_file_path``.
+
 Enforces single-writer file lanes MECHANICALLY while the factory is armed.
 Fast no-op when the project has no dark-factory config or the factory is disarmed,
 so having the plugin enabled costs nothing outside factory runs.
@@ -16,7 +20,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from df_common import read_input, find_root, load_json, config_path, get_state, deny, allow
+from df_common import (read_input, find_root, load_json, config_path, get_state,
+                       tool_file_path, deny, allow)
 
 
 def main():
@@ -28,8 +33,7 @@ def main():
     if not state.get("armed"):
         allow()
 
-    tool_input = data.get("tool_input") or {}
-    fp = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
+    fp = tool_file_path(data.get("tool_input") or {})
     if not fp:
         allow()
     if not os.path.isabs(fp):

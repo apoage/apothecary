@@ -54,5 +54,14 @@
       "medium": ["judge:correctness", "judge:regression", "flow-verifier"],
       "high": ["judge:correctness", "judge:fail-closed", "judge:regression", "judge:security", "flow-verifier"]
     }
+  },
+
+  "models": {
+    "_note": "OPTIONAL — delete this whole block to have every subagent inherit the armed session's model. Values are harness-specific Agent-tool model names (Claude: sonnet | opus | haiku; Kimi: advisory only — no per-spawn override)",
+    "implementer": "sonnet",
+    "judge": "sonnet",
+    "flow_verifier": "sonnet",
+    "visual_judge": "sonnet",
+    "escalate_to": "opus"
   }
 }

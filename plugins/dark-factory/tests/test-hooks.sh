@@ -5,6 +5,7 @@
 # Usage: test-hooks.sh [hooks-dir]   (default: ../hooks relative to this script)
 set -u
 HOOKS="$(cd "${1:-$(dirname "$0")/../hooks}" 2>/dev/null && pwd)" || { echo "hooks dir not found: ${1:-$(dirname "$0")/../hooks}" >&2; exit 1; }
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJ=/tmp/df-test
 PASS=0; FAIL=0
 
@@ -109,6 +110,16 @@ unset KIMI_CODE_HOME
 echo "== disarm =="
 expect_allow bash_gate.py "$(printf "$S1" 'true # dark-factory-disarm')" "disarm allowed"
 expect_allow bash_gate.py "$(printf "$S1" 'git commit -m x')" "disarmed: commit allowed"
+
+echo "== init.sh: scaffold, idempotent =="
+INIT_PROJ=/tmp/df-init
+rm -rf "$INIT_PROJ"; mkdir -p "$INIT_PROJ"
+bash "$SCRIPT_DIR/../tools/init.sh" "$INIT_PROJ" >/dev/null
+[ -f "$INIT_PROJ/.dark-factory/config.json" ] && [ -f "$INIT_PROJ/tasks/QUEUE.md" ] && [ -f "$INIT_PROJ/tasks/DECISIONS.md" ] && ok "init creates config+queue+decisions" || bad "init creates config+queue+decisions"
+grep -qxF '.dark-factory/state.json' "$INIT_PROJ/.gitignore" && grep -qxF '.dark-factory/verdicts/' "$INIT_PROJ/.gitignore" && ok "init gitignores runtime files" || bad "init gitignores runtime files"
+echo '{"custom": true}' > "$INIT_PROJ/.dark-factory/config.json"
+bash "$SCRIPT_DIR/../tools/init.sh" "$INIT_PROJ" >/dev/null
+grep -q '"custom": true' "$INIT_PROJ/.dark-factory/config.json" && [ "$(grep -c 'state\.json' "$INIT_PROJ/.gitignore")" = 1 ] && ok "init re-run keeps existing files, no gitignore dupes" || bad "init idempotency"
 
 echo
 echo "PASS=$PASS FAIL=$FAIL"

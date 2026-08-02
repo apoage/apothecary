@@ -28,15 +28,19 @@ lane markings, never the security boundary.
 
 ## First run — setup (only if `.dark-factory/config.json` is missing)
 
-1. Inspect the repo (test runner, version file, changelog, fixtures, UI or not) and draft
-   a config from `references/config.template.json`. Explain each guess; the key-by-key
-   reference is `references/config.md`.
-2. Get the owner's confirmation, then write `.dark-factory/config.json`.
-3. Create `{{paths.queue}}` and `{{paths.decisions}}` from `references/QUEUE.template.md`
-   and `references/DECISIONS.template.md` if missing.
-4. Gitignore the runtime files: `.dark-factory/state.json`, `.dark-factory/run-*.jsonl`,
-   `.dark-factory/verdicts/`.
-5. Stop — setup and first factory run should not share a session's worth of guessing.
+The initialization routine lives in the plugin: `tools/init.sh` scaffolds
+`.dark-factory/` (config from `references/config.template.json`, QUEUE and DECISIONS
+from their templates, runtime files gitignored) — idempotent, never overwrites. The
+`/dark-factory:init` slash command wraps it with the owner interview. Driving it
+manually:
+
+1. Run `tools/init.sh <repo>` (paths above are relative to the plugin root).
+2. Inspect the repo (test runner, version file, changelog, fixtures, UI or not) and
+   fill the scaffolded `.dark-factory/config.json` with real values. Explain each
+   guess; the key-by-key reference is `references/config.md`. `commands.test` must be
+   right — the commit gate trusts it.
+3. Get the owner's confirmation on the filled config before anything runs.
+4. Stop — setup and first factory run should not share a session's worth of guessing.
 
 ## The guard rail — what the hooks enforce while armed
 

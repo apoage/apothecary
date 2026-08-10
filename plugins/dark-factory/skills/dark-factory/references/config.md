@@ -28,8 +28,8 @@ The single place a project teaches the factory its specifics. Committed, planner
 | `lanes.shared` | Both threads write here (banners/DECISIONS rows for the factory — discipline stays prompt-level inside shared dirs) | `["tasks/"]` |
 | `lanes.implementer_doc_exceptions` | Filename substrings the factory MAY write inside planner lanes | `["handoff", "validation"]` |
 | `guards.allow_push` | `false` = the bash gate denies every `git push` while armed | keep `false` |
-| `guards.require_verdict` | `true` = commit/tag requires a fresh green verdict file | keep `true` |
-| `guards.verdict_max_age_minutes` | How fresh the verdict must be at commit time | `60` |
+| `guards.require_verdict` | `true` = commit/tag requires a green verdict file that is fresh AND newer than the current arming | keep `true` |
+| `guards.verdict_max_age_minutes` | How fresh the verdict must be at commit time. Independent of the arming rule: a verdict older than the arming is refused at any age | `60` |
 | `guards.halt_after_failures` | Failed fix→verify cycles before the task HALTs to a DECISIONS row | `3` |
 | `verification.risk_tiers` | Panel composition per declared task risk (`judge:<lens>`, `flow-verifier`) | see template |
 | `models` | **Optional.** Model per subagent role, passed as the Agent tool's `model` at spawn. Omit the whole block and every subagent inherits the armed session's model — the pre-existing behaviour. Names are harness-specific; Kimi has no per-spawn override today, so there the block is advisory | see template |
@@ -44,7 +44,12 @@ The single place a project teaches the factory its specifics. Committed, planner
   small mechanical tasks, `high` on anything touching gates, locks, money, or data
   destruction.
 - **Why is the verdict freshness-checked?** A verdict older than the code it approves is
-  a lie with a timestamp. The gate compares mtimes, not intentions.
+  a lie with a timestamp. The gate compares mtimes, not intentions — and since 0.3.3 it
+  also refuses any verdict written before the current arming, because freshness alone
+  cannot tell whose work a verdict approved. A run that dies mid-task (the allowance
+  running out is the common way) leaves a green verdict for the task it already shipped;
+  without the arming rule that file would open the gate for the next session's unverified
+  ruins.
 - **Why escalate the model instead of just running the big one?** Same cost model as the
   risk tiers, one level down: most queue tasks are specced tightly enough that a mid-tier
   model executes them exactly, and the ones that aren't announce themselves by failing.

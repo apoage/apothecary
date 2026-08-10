@@ -83,10 +83,11 @@ try:
 except Exception:
     max_age = 60
 if v.get("green") is True and age <= max_age:
-    print("  → DANGER: it is still GREEN and FRESH (%d of %d min), and the commit gate does\n"
-          "    not check WHICH task a verdict is for. As it stands, the next session to arm\n"
-          "    could commit anything — including unverified ruins — behind this file. Move it\n"
-          "    out of the way before resuming (keep it as evidence):\n"
+    print("  → STILL GREEN AND FRESH (%d of %d min) but written for the task named above.\n"
+          "    Since 0.3.3 the commit gate also refuses any verdict older than the current\n"
+          "    arming, so re-arming voids this one mechanically. Move it aside anyway —\n"
+          "    hooks fail open, installs in the field may predate that rule, and a lying\n"
+          "    file in verdicts/ misleads whoever reads it next:\n"
           "      mkdir -p .dark-factory/recovery && mv .dark-factory/verdicts/current.json \\\n"
           "        .dark-factory/recovery/<date>-void-verdict.json"
           % (age, max_age))

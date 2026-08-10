@@ -151,7 +151,7 @@ binds the running session as the implementer; from then on:
 | High-risk action | Guard | Outcome |
 |---|---|---|
 | Out-of-lane write (either thread) | `lane_guard` | denied with the lane map |
-| `git commit` / `git tag` without a fresh green verdict | `bash_gate` | denied, fail closed |
+| `git commit` / `git tag` without a green verdict, fresh AND newer than the arming | `bash_gate` | denied, fail closed |
 | `git push` | `bash_gate` | denied, always |
 | Ending the turn without the wrap-up ritual | `stop_gate` | blocked until bannered, handed off, clean, disarmed |
 | Any mutation | `run_log` | appended to `.dark-factory/run-<date>.jsonl` |

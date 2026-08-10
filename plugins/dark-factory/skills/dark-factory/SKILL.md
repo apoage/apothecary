@@ -49,7 +49,7 @@ Arming replaces prompt-discipline with mechanism on every high-risk action:
 | High-risk action | Hook | Effect |
 |---|---|---|
 | Write outside your lane | `lane_guard` (PreToolUse) | denied, both directions — you can't edit planner areas; a concurrent planner session can't edit code while you run |
-| `git commit` / `git tag` | `bash_gate` (PreToolUse) | denied unless `.dark-factory/verdicts/current.json` is fresh (< `{{guards.verdict_max_age_minutes}}` min) and green — verification is a precondition, not a habit |
+| `git commit` / `git tag` | `bash_gate` (PreToolUse) | denied unless `.dark-factory/verdicts/current.json` is green, fresh (< `{{guards.verdict_max_age_minutes}}` min) **and written after this arming** — verification is a precondition, not a habit, and a previous run's verdict is never yours |
 | `git push` | `bash_gate` (PreToolUse) | always denied (`{{guards.allow_push}}` = false); the owner pushes after review |
 | Ending the turn | `stop_gate` (Stop) | blocked while armed — you either work the queue or run the wrap-up ritual and disarm |
 | Everything you touch | `run_log` (PostToolUse) | appended to `.dark-factory/run-<date>.jsonl` for the morning reconcile |

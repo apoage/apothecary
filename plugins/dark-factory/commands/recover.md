@@ -112,19 +112,21 @@ This is where the budget goes. Rebuilding what already exists is the expensive m
 5. **You never write `.dark-factory/verdicts/current.json`.** That file is the commit gate,
    and it belongs to the armed session that ships. Your findings feed it; they don't replace
    it. If you ran a downgraded model, say which — the next run may need to re-judge.
-6. **Void the dead run's verdict by MOVING it — first, before anything else.** The gate checks
-   that a verdict is green, fresh and written by the armed session; it does **not** check which
-   task it is for. A dead run's verdict is often only minutes old, so left in place it opens
-   the gate for the next session to commit *anything*, verified or not. Convert the doctrine
-   into mechanism, keeping the evidence:
+6. **Void the dead run's verdict by MOVING it — first, before anything else.** The gate never
+   checks which *task* a verdict is for, only that it is green, fresh, same-session and (since
+   0.3.3) newer than the current arming. That arming clause means re-arming already voids a
+   dead run's leftover — but move it anyway, keeping the evidence:
 
    ```bash
    mkdir -p .dark-factory/recovery
    mv .dark-factory/verdicts/current.json .dark-factory/recovery/<date>-void-verdict.json
    ```
 
-   The gate now fails closed on absence, and the resuming run must earn its own verdict. The
-   postmortem flags this explicitly when the leftover verdict is still green and fresh.
+   Three reasons this stays a step and not a footnote: hooks are fail-open, so a broken or
+   absent gate must not be the only thing standing between unverified ruins and a commit;
+   installs in the field may predate 0.3.3; and a green file in `verdicts/` is a lie to the
+   next reader regardless of what the gate does with it. The postmortem flags it when it is
+   still green and fresh.
 
 ## Phase 5 — preserve, don't repair
 

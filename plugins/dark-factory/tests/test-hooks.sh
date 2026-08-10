@@ -181,20 +181,70 @@ expect_deny  bash_gate.py "$(printf "$PLB" 'git commit -m recovered')" "planner 
 # /dark-factory:arm claims the gate refuses to arm without a config — prove it
 expect_deny bash_gate.py '{"session_id":"planner-x","cwd":"/tmp/df-nocfg","tool_input":{"command":"true # dark-factory-arm"}}' "arming without a config is denied, with the init pointer"
 
-echo "== recover: a dead run's leftover verdict must be MOVED, not merely distrusted =="
-# The gate checks green + freshness + session, never WHICH task the verdict is for. A dead
-# run's still-fresh green verdict therefore opens the gate for whoever arms next — so the
-# recovery routine moves it aside. These two checks pin both halves of that reality.
+echo "== the arming rule: a verdict from a previous run cannot ship this one =="
+# The gate cannot tell WHICH task a verdict approved, so freshness alone let a dead run's
+# minutes-old green verdict open the gate for whatever the next session armed over
+# (tasks/2026-08-11-bug-verdict-predates-arming.md). A verdict must postdate the arming.
 mkdir -p "$RUIN/.dark-factory/verdicts"
 cat > "$RUIN/.dark-factory/verdicts/current.json" <<'EOF'
 {"task": "tasks/t1.md", "green": true, "suite": "1 passed", "written_at": "2026-08-10T21:00:00"}
 EOF
+sleep 1   # mtime resolution: the verdict must be demonstrably OLDER than the arming
 run_hook bash_gate.py '{"session_id":"resumer","cwd":"/tmp/df-ruin","tool_name":"Bash","tool_input":{"command":"true # dark-factory-arm"}}'
+grep -q '"armed_epoch"' "$RUIN/.dark-factory/state.json" && ok "arming stamps armed_epoch into the state file" || bad "armed_epoch missing"
 RES='{"session_id":"resumer","cwd":"/tmp/df-ruin","tool_name":"Bash","tool_input":{"command":"git commit -m resumed"}}'
-expect_allow bash_gate.py "$RES" "HAZARD PINNED: a dead run's fresh green verdict opens the gate for the next armer"
+expect_deny bash_gate.py "$RES" "green+fresh verdict PREDATING the arming is denied"
+run_hook bash_gate.py "$RES"; printf '%s' "$OUT" | grep -q 'PREDATES this arming' \
+  && ok "the denial names the real problem (previous run's verdict), not just staleness" || bad "deny reason wording"
+# the same session, having re-verified, rewrites the verdict — the gate opens
+touch "$RUIN/.dark-factory/verdicts/current.json"
+expect_allow bash_gate.py "$RES" "rewriting the verdict after arming re-opens the gate"
+# with a green, fresh verdict on disk the postmortem must SAY SO — the leftover-verdict
+# warning is the recovery routine's cue to move it aside (two-sided: absent again below)
+bash "$SCRIPT_DIR/../tools/postmortem.sh" "$RUIN" 2>&1 | grep -q 'STILL GREEN AND FRESH' \
+  && ok "postmortem flags a green+fresh verdict as a leftover to move aside" || bad "leftover-verdict warning missing"
+# the two rules are independent: a LONG run whose verdict postdates the arming but has
+# aged out must still be refused, and with the staleness reason (the arming rule must not
+# shadow it — with a seconds-old arming every stale verdict also predates, so this is the
+# only place the STALE branch is exercised)
+python3 - "$RUIN" <<'PY'
+import datetime, json, os, sys, time
+p = os.path.join(sys.argv[1], ".dark-factory", "state.json")
+st = json.load(open(p))
+long_ago = time.time() - 3 * 3600                      # armed three hours ago
+st["armed_epoch"] = long_ago
+st["armed_at"] = datetime.datetime.fromtimestamp(long_ago).isoformat(timespec="seconds")
+json.dump(st, open(p, "w"), indent=2)
+PY
+touch -d '90 minutes ago' "$RUIN/.dark-factory/verdicts/current.json"
+expect_deny bash_gate.py "$RES" "verdict newer than the arming but aged out: denied"
+run_hook bash_gate.py "$RES"; printf '%s' "$OUT" | grep -q 'is STALE (90 min old, max 60)' \
+  && ok "  → refused as STALE, not as predating (the rules stay independent)" || bad "stale reason shadowed by the arming rule"
+
+# back-compat: a state file from <= 0.3.2 carries armed_at but no armed_epoch
+python3 - "$RUIN" <<'PY'
+import json, os, sys, time
+p = os.path.join(sys.argv[1], ".dark-factory", "state.json")
+st = json.load(open(p)); st.pop("armed_epoch", None)
+st["armed_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")  # now, in the 0.3.2 format
+json.dump(st, open(p, "w"), indent=2)
+PY
+# armed_at is second-truncated, so the fallback can only resolve whole seconds: make the
+# verdict plainly older than the arming (still fresh — 1 min, well under the 60 min cap).
+touch -d '1 minute ago' "$RUIN/.dark-factory/verdicts/current.json"
+expect_deny bash_gate.py "$RES" "pre-0.3.3 state (armed_at only) still enforces the arming rule"
+python3 - "$RUIN" <<'PY'
+import json, os, sys
+p = os.path.join(sys.argv[1], ".dark-factory", "state.json")
+st = json.load(open(p)); st.pop("armed_epoch", None); st.pop("armed_at", None)
+json.dump(st, open(p, "w"), indent=2)
+PY
+expect_allow bash_gate.py "$RES" "state with neither stamp degrades to 0.3.2 behaviour, never bricks"
+run_hook bash_gate.py '{"session_id":"resumer","cwd":"/tmp/df-ruin","tool_name":"Bash","tool_input":{"command":"true # dark-factory-arm"}}'
+# recovery still moves the file aside: hooks fail open, and a green lie misleads readers
 mkdir -p "$RUIN/.dark-factory/recovery"
 mv "$RUIN/.dark-factory/verdicts/current.json" "$RUIN/.dark-factory/recovery/2026-08-10-void-verdict.json"
-expect_deny bash_gate.py "$RES" "after recovery voids it by moving the file, the gate fails closed again"
+expect_deny bash_gate.py "$RES" "with the verdict moved aside, the gate fails closed on absence"
 [ -f "$RUIN/.dark-factory/recovery/2026-08-10-void-verdict.json" ] && ok "voided verdict is preserved as evidence, not deleted" || bad "voided verdict lost"
 PMV=$(bash "$SCRIPT_DIR/../tools/postmortem.sh" "$RUIN" 2>&1)
 # A brief carries its own FINGERPRINT line, so the output holds two `ruins=` values: this
@@ -204,8 +254,8 @@ QUOTED_FP=$(printf '%s' "$PMV" | grep -c '^  | FINGERPRINT:')
 [ "$LIVE_FP" = 1 ] && [ "$QUOTED_FP" = 1 ] \
   && ok "quoted brief is gutter-prefixed; the live fingerprint stays unambiguous" \
   || bad "fingerprint ambiguity (live=$LIVE_FP quoted=$QUOTED_FP)"
-printf '%s' "$PMV" | grep -q 'DANGER: it is still GREEN and FRESH' \
-  && bad "stale-verdict DANGER shown after the verdict was voided" || ok "no false DANGER once the verdict is voided"
+printf '%s' "$PMV" | grep -q 'STILL GREEN AND FRESH' \
+  && bad "leftover-verdict warning still shown after the verdict was voided" || ok "warning clears once the verdict is voided"
 
 echo "== init.sh: migrates a repo scaffolded before recovery/ existed =="
 MIG=/tmp/df-migrate

@@ -66,6 +66,13 @@ dark-factory/
 │       ├── two-thread-contract.md   ← the operating doctrine (planner ↔ factory)
 │       ├── QUEUE.template.md        ← the ranked work order
 │       └── DECISIONS.template.md    ← the blocked-on-human surface
+├── commands/                        ← the three ways in
+│   ├── init.md                      ← /dark-factory:init — build the factory in a repo
+│   ├── arm.md                       ← /dark-factory:arm — preflight, arm, run the loop
+│   └── recover.md                   ← /dark-factory:recover — after a run dies
+├── tools/
+│   ├── init.sh                      ← idempotent scaffold (config, queue, decisions, gitignore)
+│   └── postmortem.sh                ← read-only forensic dump of a failed run
 ├── agents/                          ← the roster
 │   ├── dark-factory-implementer.md  ← builds ONE task file, exactly as specced
 │   ├── dark-factory-judge.md        ← adversarial reviewer, ONE lens, refutation-first
@@ -83,6 +90,28 @@ dark-factory/
     ├── RESEARCH.md                  ← the comparative review that shaped v0.2
     └── examples/                    ← live queue/decisions/playbook files from the source project
 ```
+
+## Three ways in
+
+| Command | When | What it does |
+|---|---|---|
+| `/dark-factory:init` | fresh repo, no `.dark-factory/` | scaffolds config + QUEUE + DECISIONS from templates (`tools/init.sh`, idempotent), then interviews the owner to fill the config. Stops there. |
+| `/dark-factory:arm` | normal start of a run | preflight (config · state · clean tree · decisions · queue), `true # dark-factory-arm`, then the loop. Refuses to steal a lane another live session holds. |
+| `/dark-factory:recover` | a run died armed — **planner-side** | `tools/postmortem.sh` (read-only: guard state, verdict age, ledger, silence, state fingerprint, git evidence, banner check) → locate the failure point → triage the ruins → verify the survivors blind → write the rerun brief with `ARM: GREEN` / `NOT GREEN` → disarm. Never implements, never commits. |
+
+`/dark-factory` (Kimi: `/skill:dark-factory`) still runs the loop directly; `arm` is that
+startup made explicit.
+
+**Why recovery is planner work.** The death this plugin actually sees is not a crash — it is
+the session running out of model allowance with the reset hours away. That stops the run
+*between tool calls*: the files are whole, the work is possibly fine, and **nothing has been
+verified**. The state file still names the dead session as implementer of record, so the next
+session is held to planner lanes anyway — which is exactly the lane recovery needs. So the
+planner reads the ruins, verifies the survivors blind (the dead run's word is not evidence),
+writes `.dark-factory/recovery/rerun.md` — *do not redo this, this is unverified, this is
+quarantined, next action is that* — and only then disarms. `/dark-factory:arm` reads the
+brief before the queue and refuses to start on `NOT GREEN`. The factory resumes instead of
+restarting, which is the whole point when the good model is the one that ran dry.
 
 ## The assembly line
 

@@ -67,6 +67,16 @@ When a hook denies you, it is right — do what the reason says; never work arou
 5. If the user passed steering args, they override queue order (never invariants).
 6. **Arm**: run `true # dark-factory-arm`. From here the guard rail is live.
 
+`/dark-factory:arm` is this startup as a command — same steps, plus two checks. First, a
+state file already armed: by another **live** session → it is the implementer of record,
+don't steal the lane; by a session that is **gone** → a dead run is holding the guard rail,
+and `/dark-factory:recover` (planner-side) is the way in. Second,
+`.dark-factory/recovery/rerun.md` — a recovery brief from a previous death. Read it before
+the queue: `ARM: NOT GREEN` means do not arm; `ARM: GREEN` gives you `DO NOT REDO` (already
+built and verified — never rebuild it), `UNVERIFIED` (exists, needs its panel), `QUARANTINED`
+and `NEXT ACTION`, all void if the brief's `FINGERPRINT` no longer matches the repo. Delete
+the brief in your wrap-up once that work ships or lands in a DECISIONS row.
+
 ## Model policy — cheap by default, escalate on failure
 
 `{{models}}` says which model each subagent runs on. Pass it as the Agent tool's `model`
@@ -152,6 +162,15 @@ load-bearing features on guessed decisions; seed the DECISIONS row instead. Then
 4. **Disarm**: run `true # dark-factory-disarm`. The stop gate will not let you end the
    turn armed — that is by design, not an obstacle. (Kimi: the gate blocks once per
    arming, then lets a stop through rather than risking a trapped session.)
+
+That is the clean exit. The dirty one — your model allowance runs out with the reset hours
+away, or the session is killed mid-task — leaves the factory armed with unverified work in
+the tree and no handoff. You cannot write your own recovery from inside that death, so don't
+try to pre-empt it: keep the loop's steps atomic (verdict → commit → banner, never
+half-done), and leave the rest to `/dark-factory:recover`, which the **planner** runs against
+the ruins. It locates the failure point from the ledger and git, verifies the survivors
+blind, writes the rerun brief, and disarms (any session may disarm; the dead one's session id
+no longer matters). Your next arming starts from that brief instead of from zero.
 
 ## Validation tiers
 

@@ -121,6 +121,129 @@ echo '{"custom": true}' > "$INIT_PROJ/.dark-factory/config.json"
 bash "$SCRIPT_DIR/../tools/init.sh" "$INIT_PROJ" >/dev/null
 grep -q '"custom": true' "$INIT_PROJ/.dark-factory/config.json" && [ "$(grep -c 'state\.json' "$INIT_PROJ/.gitignore")" = 1 ] && ok "init re-run keeps existing files, no gitignore dupes" || bad "init idempotency"
 
+echo "== postmortem.sh: reads a dead run, mutates nothing =="
+RUIN=/tmp/df-ruin
+rm -rf "$RUIN"; mkdir -p "$RUIN/tasks" "$RUIN/src"
+bash "$SCRIPT_DIR/../tools/init.sh" "$RUIN" >/dev/null
+git -C "$RUIN" init -q .
+printf '# task one\n\nno banner here.\n' > "$RUIN/tasks/t1.md"
+git -C "$RUIN" add -A >/dev/null 2>&1
+git -C "$RUIN" -c user.email=t@t -c user.name=t commit -qm base >/dev/null 2>&1
+# a run that armed under a session which is now gone, then died in the tree
+RUIN_S='{"session_id":"dead-session","cwd":"/tmp/df-ruin","tool_name":"%s","tool_input":{"%s":"%s"}}'
+run_hook bash_gate.py "$(printf "$RUIN_S" Bash command 'true # dark-factory-arm')"
+run_hook run_log.py  "$(printf "$RUIN_S" Edit path '/tmp/df-ruin/tasks/t1.md')"
+run_hook run_log.py  "$(printf "$RUIN_S" Edit path '/tmp/df-ruin/src/half.py')"
+printf 'def half(\n' > "$RUIN/src/half.py"
+BEFORE_STATE=$(cat "$RUIN/.dark-factory/state.json")
+PM=$(bash "$SCRIPT_DIR/../tools/postmortem.sh" "$RUIN" 2>&1); PMRC=$?
+[ $PMRC -eq 0 ] && ok "postmortem exits 0 on a ruined project" || bad "postmortem exits 0 (rc=$PMRC: $PM)"
+printf '%s' "$PM" | grep -q 'STILL ARMED' && printf '%s' "$PM" | grep -q 'dead-session' \
+  && ok "postmortem reports the dead run still holds the guard rail" || bad "postmortem reports armed state"
+printf '%s' "$PM" | grep -q 'src/half.py' && printf '%s' "$PM" | grep -q 'NO BANNER' \
+  && ok "postmortem surfaces the dirty ruin and the unbannered task" || bad "postmortem ledger/banner cross-check"
+printf '%s' "$PM" | grep -q 'STOPPED, NOT WRAPPED UP' \
+  && ok "postmortem fingerprints the budget-death shape (armed, no wrap-up, no disarm)" || bad "postmortem failure fingerprint"
+[ "$(cat "$RUIN/.dark-factory/state.json")" = "$BEFORE_STATE" ] && ok "postmortem is read-only (state untouched)" || bad "postmortem mutated state"
+# the state fingerprint the rerun brief binds to must move when the ruins move
+FP1=$(printf '%s' "$PM" | grep -o 'ruins=[0-9a-f]*')
+printf 'def half(\n  x\n' > "$RUIN/src/half.py"
+FP2=$(bash "$SCRIPT_DIR/../tools/postmortem.sh" "$RUIN" 2>&1 | grep -o 'ruins=[0-9a-f]*')
+[ -n "$FP1" ] && [ -n "$FP2" ] && [ "$FP1" != "$FP2" ] && ok "state fingerprint changes when the ruins change" || bad "state fingerprint ($FP1 vs $FP2)"
+# a brief left by a previous recovery must be surfaced, not buried
+mkdir -p "$RUIN/.dark-factory/recovery"
+printf 'ARM: NOT GREEN — waiting on owner decision D-7\nFINGERPRINT: head=deadbee ruins=000000000000\nNEXT ACTION: none\n' > "$RUIN/.dark-factory/recovery/rerun.md"
+bash "$SCRIPT_DIR/../tools/postmortem.sh" "$RUIN" 2>&1 | grep -q 'ARM: NOT GREEN' \
+  && ok "postmortem surfaces an existing rerun brief" || bad "postmortem surfaces rerun brief"
+grep -qxF '.dark-factory/recovery/' "$RUIN/.gitignore" \
+  && ok "init gitignores the recovery dir (brief never dirties the tree)" || bad "recovery dir gitignored"
+echo "== recover is planner work: its lanes are open while the dead run holds the code =="
+# /dark-factory:recover runs as the PLANNER against a factory still armed by a session
+# that no longer exists. Everything the routine writes must be allowed, everything it
+# promises not to touch must be denied — proven against the SHIPPED template lane map.
+PL='{"session_id":"planner-x","cwd":"/tmp/df-ruin","tool_name":"Edit","tool_input":{"file_path":"%s"}}'
+PLK='{"session_id":"planner-x","cwd":"/tmp/df-ruin","tool_name":"Write","tool_input":{"path":"%s"}}'
+PLB='{"session_id":"planner-x","cwd":"/tmp/df-ruin","tool_name":"Bash","tool_input":{"command":"%s"}}'
+expect_allow lane_guard.py "$(printf "$PL"  '/tmp/df-ruin/.dark-factory/recovery/rerun.md')" "planner may write the rerun brief"
+expect_allow lane_guard.py "$(printf "$PLK" '/tmp/df-ruin/.dark-factory/recovery/2026-08-10-half.patch')" "planner may write a quarantine patch (kimi envelope)"
+expect_allow lane_guard.py "$(printf "$PL"  '/tmp/df-ruin/tasks/t1.md')" "planner may fix a lying banner (shared lane)"
+expect_allow lane_guard.py "$(printf "$PL"  '/tmp/df-ruin/tasks/DECISIONS.md')" "planner may seed a DECISIONS row"
+expect_allow lane_guard.py "$(printf "$PL"  '/tmp/df-ruin/docs/2026-08-10-recovery.md')" "planner may write the recovery doc under any filename"
+expect_deny  lane_guard.py "$(printf "$PL"  '/tmp/df-ruin/src/half.py')" "planner may NOT repair code"
+expect_deny  lane_guard.py "$(printf "$PL"  '/tmp/df-ruin/CHANGELOG.md')" "planner may NOT touch the changelog"
+# quarantine and inspection must survive the no-push wall: `git stash push` is not a push
+expect_allow bash_gate.py "$(printf "$PLB" 'git stash push -m \"df-recover 2026-08-10: half-built\"')" "git stash push allowed (not caught by the no-push wall)"
+expect_allow bash_gate.py "$(printf "$PLB" 'git stash push --include-untracked')" "git stash push --include-untracked allowed"
+expect_allow bash_gate.py "$(printf "$PLB" 'git stash list')" "git stash list allowed"
+expect_allow bash_gate.py "$(printf "$PLB" 'git diff HEAD')" "git diff allowed"
+expect_deny  bash_gate.py "$(printf "$PLB" 'git push origin main')" "a real git push still denied"
+expect_deny  bash_gate.py "$(printf "$PLB" 'git commit -m recovered')" "planner may NOT commit (verdict belongs to the armed run)"
+# /dark-factory:arm claims the gate refuses to arm without a config — prove it
+expect_deny bash_gate.py '{"session_id":"planner-x","cwd":"/tmp/df-nocfg","tool_input":{"command":"true # dark-factory-arm"}}' "arming without a config is denied, with the init pointer"
+
+echo "== recover: a dead run's leftover verdict must be MOVED, not merely distrusted =="
+# The gate checks green + freshness + session, never WHICH task the verdict is for. A dead
+# run's still-fresh green verdict therefore opens the gate for whoever arms next — so the
+# recovery routine moves it aside. These two checks pin both halves of that reality.
+mkdir -p "$RUIN/.dark-factory/verdicts"
+cat > "$RUIN/.dark-factory/verdicts/current.json" <<'EOF'
+{"task": "tasks/t1.md", "green": true, "suite": "1 passed", "written_at": "2026-08-10T21:00:00"}
+EOF
+run_hook bash_gate.py '{"session_id":"resumer","cwd":"/tmp/df-ruin","tool_name":"Bash","tool_input":{"command":"true # dark-factory-arm"}}'
+RES='{"session_id":"resumer","cwd":"/tmp/df-ruin","tool_name":"Bash","tool_input":{"command":"git commit -m resumed"}}'
+expect_allow bash_gate.py "$RES" "HAZARD PINNED: a dead run's fresh green verdict opens the gate for the next armer"
+mkdir -p "$RUIN/.dark-factory/recovery"
+mv "$RUIN/.dark-factory/verdicts/current.json" "$RUIN/.dark-factory/recovery/2026-08-10-void-verdict.json"
+expect_deny bash_gate.py "$RES" "after recovery voids it by moving the file, the gate fails closed again"
+[ -f "$RUIN/.dark-factory/recovery/2026-08-10-void-verdict.json" ] && ok "voided verdict is preserved as evidence, not deleted" || bad "voided verdict lost"
+PMV=$(bash "$SCRIPT_DIR/../tools/postmortem.sh" "$RUIN" 2>&1)
+# A brief carries its own FINGERPRINT line, so the output holds two `ruins=` values: this
+# run's live reading, and the quoted one from the brief. They must be unmistakable.
+LIVE_FP=$(printf '%s' "$PMV" | grep -c '^  head=.*ruins=')
+QUOTED_FP=$(printf '%s' "$PMV" | grep -c '^  | FINGERPRINT:')
+[ "$LIVE_FP" = 1 ] && [ "$QUOTED_FP" = 1 ] \
+  && ok "quoted brief is gutter-prefixed; the live fingerprint stays unambiguous" \
+  || bad "fingerprint ambiguity (live=$LIVE_FP quoted=$QUOTED_FP)"
+printf '%s' "$PMV" | grep -q 'DANGER: it is still GREEN and FRESH' \
+  && bad "stale-verdict DANGER shown after the verdict was voided" || ok "no false DANGER once the verdict is voided"
+
+echo "== init.sh: migrates a repo scaffolded before recovery/ existed =="
+MIG=/tmp/df-migrate
+rm -rf "$MIG"; mkdir -p "$MIG/.dark-factory" "$MIG/tasks"
+printf '{"project_name":"real","commands":{"test":"pytest -q"}}\n' > "$MIG/.dark-factory/config.json"
+printf '# QUEUE\n- [ ] a real row\n' > "$MIG/tasks/QUEUE.md"
+printf '.dark-factory/state.json\n.dark-factory/run-*.jsonl\n.dark-factory/verdicts/\n' > "$MIG/.gitignore"
+MIG_CFG=$(sha1sum < "$MIG/.dark-factory/config.json"); MIG_Q=$(sha1sum < "$MIG/tasks/QUEUE.md")
+bash "$SCRIPT_DIR/../tools/init.sh" "$MIG" >/dev/null
+[ "$(sha1sum < "$MIG/.dark-factory/config.json")" = "$MIG_CFG" ] && [ "$(sha1sum < "$MIG/tasks/QUEUE.md")" = "$MIG_Q" ] \
+  && ok "migration leaves a filled config and edited queue byte-identical" || bad "migration mutated existing files"
+[ "$(wc -l < "$MIG/.gitignore")" = 4 ] && grep -qxF '.dark-factory/recovery/' "$MIG/.gitignore" \
+  && ok "migration appends exactly the one missing ignore line" || bad "migration gitignore delta ($(tr '\n' ' ' < "$MIG/.gitignore"))"
+
+echo "== docs: every {{variable}} in the commands resolves against the template =="
+python3 - "$SCRIPT_DIR/.." <<'PY' && ok "no unresolved {{variables}} in commands/*.md" || bad "unresolved {{variable}} in commands/*.md"
+import json, pathlib, re, sys
+root = pathlib.Path(sys.argv[1])
+tpl = json.load(open(root / "skills/dark-factory/references/config.template.json"))
+missing = []
+for f in sorted((root / "commands").glob("*.md")):
+    for v in sorted(set(re.findall(r"\{\{([a-zA-Z0-9_.]+)\}\}", f.read_text()))):
+        cur = tpl
+        for part in v.split("."):
+            if not isinstance(cur, dict) or part not in cur:
+                missing.append("%s: {{%s}}" % (f.name, v)); break
+            cur = cur[part]
+if missing:
+    print("\n".join(missing), file=sys.stderr)
+sys.exit(1 if missing else 0)
+PY
+
+# recovery's release valve: a session that is NOT the dead implementer may disarm
+expect_allow bash_gate.py "$(printf "$RUIN_S" Bash command 'true # dark-factory-disarm')" "recover can disarm a dead run"
+rm -rf /tmp/df-nostate && mkdir -p /tmp/df-nostate
+OUT_NC=$(bash "$SCRIPT_DIR/../tools/postmortem.sh" /tmp/df-nostate 2>&1); RC_NC=$?
+[ $RC_NC -ne 0 ] && printf '%s' "$OUT_NC" | grep -q 'dark-factory:init' && ok "postmortem on a repo with no factory points at init" || bad "postmortem no-config path (rc=$RC_NC: $OUT_NC)"
+
 echo
 echo "PASS=$PASS FAIL=$FAIL"
 [ $FAIL -eq 0 ]

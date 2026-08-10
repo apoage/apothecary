@@ -23,14 +23,17 @@ put() { # put <src> <dst> — copy only if dst is missing
   fi
 }
 
-mkdir -p "$TARGET/.dark-factory/verdicts" "$TARGET/tasks"
+mkdir -p "$TARGET/.dark-factory/verdicts" "$TARGET/.dark-factory/recovery" "$TARGET/tasks"
 
 put "$REFS/config.template.json"   "$TARGET/.dark-factory/config.json"
 put "$REFS/QUEUE.template.md"      "$TARGET/tasks/QUEUE.md"
 put "$REFS/DECISIONS.template.md"  "$TARGET/tasks/DECISIONS.md"
 
-# Runtime files the hooks write — keep them out of git.
-for pat in ".dark-factory/state.json" ".dark-factory/run-*.jsonl" ".dark-factory/verdicts/"; do
+# Runtime files the hooks and the recovery routine write — keep them out of git.
+# recovery/ carries the rerun brief and quarantine patches — a dead run's handover to the
+# next session. It must not dirty the tree: a clean tree is the precondition both
+# /dark-factory:arm and the wrap-up ritual check.
+for pat in ".dark-factory/state.json" ".dark-factory/run-*.jsonl" ".dark-factory/verdicts/" ".dark-factory/recovery/"; do
   if [ -f "$TARGET/.gitignore" ] && grep -qxF "$pat" "$TARGET/.gitignore"; then
     echo "keep   .gitignore has $pat"
   else

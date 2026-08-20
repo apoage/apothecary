@@ -30,6 +30,13 @@ Read the task file (the spec), the diff/named code, then actively try to break i
 construct the adversarial input, run the test that should fail, check the edge the
 implementer report glossed. Verify claims — do not trust the implementation report.
 
+You lens a FROZEN snapshot of the tree (worktree or copy, named in your brief). If the
+tree is being edited underneath you — files changing mid-read, diffs growing as you
+look — say so and stop: a torn read is an artifact, not a finding. Your adversarial
+inputs and command outputs go to YOUR private scratch dir (`/var/tmp/<task>-judge-<lens>`,
+named in your brief), never a shared session scratchpad, never inside the repo, never
+another agent's dir.
+
 ## Verdict (your final message)
 For each finding: severity (BLOCKER/MAJOR/MINOR) · exact file:line · the failure scenario
 (concrete input → wrong outcome) · suggested direction (one line; you do NOT fix). If

@@ -312,6 +312,26 @@ if missing:
 sys.exit(1 if missing else 0)
 PY
 
+echo "== doctrine drift guard: concurrency rules in the skill + every agent brief =="
+# The shared-mutable-state doctrine (run-36 lessons) must survive in whatever copy runs
+# this suite — source or managed install. Drop a rule here, fail there too.
+DOCTRINE=1
+grep -q "Freeze before you lens" "$SCRIPT_DIR/../skills/dark-factory/SKILL.md" || DOCTRINE=0
+grep -q "Private scratch per agent" "$SCRIPT_DIR/../skills/dark-factory/SKILL.md" || DOCTRINE=0
+grep -qi "No shared default paths" "$SCRIPT_DIR/../skills/dark-factory/SKILL.md" || DOCTRINE=0
+grep -qi "fail closed on build failure" "$SCRIPT_DIR/../skills/dark-factory/SKILL.md" || DOCTRINE=0
+[ $DOCTRINE = 1 ] && ok "skill carries the four concurrency rules" || bad "skill missing concurrency doctrine"
+N_AGENTS=$(ls "$SCRIPT_DIR/../agents"/dark-factory-*.md 2>/dev/null | wc -l)
+N_SCRATCH=$(grep -li "private scratch" "$SCRIPT_DIR/../agents"/dark-factory-*.md 2>/dev/null | wc -l)
+[ "$N_SCRATCH" = "$N_AGENTS" ] && [ "$N_AGENTS" -ge 4 ] \
+  && ok "every agent brief names its private scratch ($N_SCRATCH/$N_AGENTS)" \
+  || bad "agent briefs missing private-scratch naming ($N_SCRATCH/$N_AGENTS)"
+# no agent brief may point a multi-agent run at the shared session scratchpad:
+# every "scratchpad" mention in a brief must be a BAN (negated), never a destination
+N_DEST=$(grep -hi "scratchpad" "$SCRIPT_DIR/../agents"/dark-factory-*.md 2>/dev/null | grep -vic "never")
+[ "$N_DEST" = 0 ] && ok "no agent brief directs output to a shared session scratchpad" \
+  || bad "agent brief uses the session scratchpad as a destination ($N_DEST lines)"
+
 # recovery's release valve: a session that is NOT the dead implementer may disarm
 expect_allow bash_gate.py "$(printf "$RUIN_S" Bash command 'true # dark-factory-disarm')" "recover can disarm a dead run"
 rm -rf /tmp/df-nostate && mkdir -p /tmp/df-nostate

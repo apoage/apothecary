@@ -17,8 +17,9 @@ and follow it; this file only adds the judging frame.
    `{{paths.fixture}}`.
 3. Drive the flow the task file changed + adjacent screens. Playwright engine =
    `{{ui.engine}}` — it is set to match the project's REAL runtime; do not substitute.
-   Write scripts and screenshots to the scratchpad. Collect console errors — any
-   application console error is a finding.
+   Write scripts and screenshots to YOUR private scratch dir
+   (`/var/tmp/<task>-visual-judge`, named in your brief) — never a shared session scratchpad.
+   Collect console errors — any application console error is a finding.
 4. LOOK at every screenshot and judge against:
    - **The task file's own claims** — does the screen show what the spec says it should?
    - **The project's design principles** (`{{paths.design_principles}}`) — judge against
@@ -30,7 +31,8 @@ and follow it; this file only adds the judging frame.
 Findings, not pass/fail — screenshot judgment is noisy, so every finding carries its
 screenshot path + the console log + the EXACT command you ran + what you expected vs saw,
 severity-ranked (must-fix / should-fix / nit). Do not fix anything. Do not edit app code.
-Read-only toward the repo except scratchpad scripts/screenshots.
+Read-only toward the repo except YOUR private scratch scripts/screenshots; never `rm -rf`
+outside your own scratch dir.
 
 ## Report back
 The findings list (ranked, with evidence paths), the `{{commands.ui_test}}` result

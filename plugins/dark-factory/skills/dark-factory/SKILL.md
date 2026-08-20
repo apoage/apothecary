@@ -111,8 +111,9 @@ the big model is a signal about the task file, not just about the model.
    real data (note it, move on).
 2. **Implement by delegation**: spawn **`dark-factory-implementer`** with the task-file
    path and `model: {{models.implementer}}` (harness permitting — see the model policy);
-   the task file is the spec — don't re-derive scope. Parallelize independent tasks only
-   when their files are disjoint.
+   the task file is the spec — don't re-derive scope. **Name the agent's private scratch
+   dir in the brief** (`/var/tmp/<task>-implementer` — see the concurrency rules below).
+   Parallelize independent tasks only when their files are disjoint.
 3. **Verify — never self-review.** The writing context is the weakest reviewer. The
    intensity is the task's declared `Verify:` tier (below — the planner sets it at
    filing; absent = `full`). At `full`, pick the panel from
@@ -120,11 +121,15 @@ the big model is a signal about the task file, not just about the model.
    medium). `judge:<lens>` = one **`dark-factory-judge`** with that lens;
    `flow-verifier` = **`dark-factory-flow-verifier`**; UI-touching changes add
    **`dark-factory-visual-judge`** when `{{ui.enabled}}`. Run panel members in parallel,
-   each on its model from the policy above. Objective checks outrank judge opinion: a green
+   each on its model from the policy above. **Freeze before you lens**: judges get a
+   frozen snapshot of the tree (worktree or copy), never a tree a fix pass is editing.
+   Objective checks outrank judge opinion: a green
    suite + verified artifact claims beat a judge's hunch, and a failing test overrides any
    judge's approval.
 4. **Fix pass** from findings; re-verify what changed — spawning the fix implementer at the
-   escalated model per the policy above. After `{{guards.halt_after_failures}}` failed
+   escalated model per the policy above. The fix pass and the verification pass never
+   hold the same file at the same time (concurrency rules below). After
+   `{{guards.halt_after_failures}}` failed
    fix→verify cycles on one task: STOP that task, seed a DECISIONS row with what you
    learned, move on.
 5. **Write the verdict** to `.dark-factory/verdicts/current.json` — the commit gate reads
@@ -155,6 +160,31 @@ the big model is a signal about the task file, not just about the model.
 7. **Banner**: prepend the dated `> **STATUS (YYYY-MM-DD): SHIPPED as <version>**` line to
    the task file, remainders named. An unbannered shipped task is a lie in the queue.
 8. Next task.
+
+### Shared mutable state — the four concurrency rules
+
+Provenance: a factory run that self-reported three orchestration errors in one night,
+all the same shape — concurrent actors sharing mutable state (a fix pass racing its own
+regression judge on one file; six agents cleaning up one shared scratchpad; two smoke
+subprocesses racing one default output path). Each was a hole in this loop's doctrine.
+The rules run as law, not advice:
+
+1. **Freeze before you lens.** A fix pass and a verification pass must never hold the
+   same file at the same time. Before handing a tree to a judge, freeze a snapshot
+   (worktree or copy) and point the lens at the snapshot — or serialize fix → verify.
+   A red observed mid-fix is not a verdict on the fix; confirm at rest.
+2. **Private scratch per agent.** Every spawned agent gets its own
+   `/var/tmp/<task>-<role>` directory, named in its brief. The session scratchpad is
+   for single-agent runs only. No agent may `rm -rf` outside its own dir.
+3. **No shared default paths.** An instruction that relocates writes names
+   per-invocation or per-agent destinations; two back-to-back runs of the same builder
+   must not collide on a literal path. A suite that can only pass on lucky disk timing
+   is a defect report, not a flake.
+4. **Mutation harnesses fail closed on build failure.** "Mutant could not be
+   constructed" FAILS the suite and is distinct from "mutant built and the scenario
+   failed" (a real kill); re-anchoring one drifted instance leaves the trap armed for
+   every other mutation on the next edit. "I could not construct the test case" never
+   scores as "the guard is live" — a green total nobody ran and read is not evidence.
 
 ### Verification tiers — intensity is a declared property of the task
 

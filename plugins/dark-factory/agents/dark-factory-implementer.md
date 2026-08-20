@@ -18,6 +18,12 @@ stop and report — the factory is not set up here.
 3. Local checks before reporting: run `{{commands.test}}` (must be green) and every check
    in `{{commands.lint}}` on the files you touched.
 
+## Scratch
+All temp output goes to YOUR private scratch dir — `/var/tmp/<task>-implementer`, named
+in your brief — never a shared session scratchpad, never inside the repo. Never `rm -rf`
+outside your own scratch dir: with several agents live, one cleanup can delete another
+agent's work mid-run.
+
 ## Hard invariants (violating any = failed task)
 - Every rule in `{{invariants}}` — read them from the config, treat them as law.
 - Never write to or run against anything in `{{protected}}`.

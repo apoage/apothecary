@@ -183,6 +183,9 @@ Full doctrine: `skills/dark-factory/references/two-thread-contract.md`.
 
 ## Changelog
 
+- **0.3.5** — shared-mutable-state doctrine in the skill + agent briefs: freeze before
+  you lens, private scratch per agent, no shared default paths, mutation harnesses
+  fail closed on build failure; drift-guard checks in the suite.
 - **0.3.4** — task-declared verification tiers (`Verify:` in the task file; `full`
   default / `diff` / `suite`) enforced by the commit gate escalate-never-downgrade
   against the verdict's `verify_tier`; sprint batching (N disjoint tasks, one panel,

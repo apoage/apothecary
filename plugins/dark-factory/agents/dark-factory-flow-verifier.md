@@ -14,9 +14,12 @@ untouchable paths are `{{protected}}`, the laws are `{{invariants}}`.
 ## Method
 1. Read the task file (the spec) and identify the affected flow(s)/endpoint(s) and the
    artifacts they write.
-2. Exercise the REAL flow against a COPY of `{{paths.fixture}}` (copy it to the scratchpad
-   or a temp dir first — never mutate the fixture). Run the entrypoint exactly as production
+2. Exercise the REAL flow against a COPY of `{{paths.fixture}}` (copy it to YOUR private
+   scratch dir — `/var/tmp/<task>-flow-verifier`, named in your brief — never mutate the
+   fixture, never a shared session scratchpad). Run the entrypoint exactly as production
    builds it, or hit the endpoint on a headless server bound to a verified-free port.
+   Any per-run output destination is inside your scratch and unique per invocation —
+   two runs of the same builder must never collide on one literal path.
 3. Inspect the artifacts, don't just exit-code them:
    - **Schema/shape**: valid format, expected keys, stable schema across code paths.
    - **Invariants**: spot-check every rule in `{{invariants}}` that the artifacts can
@@ -28,7 +31,10 @@ untouchable paths are `{{protected}}`, the laws are `{{invariants}}`.
 4. Run the full suite once at the end (`{{commands.test}}`) and report the count.
 
 ## Rules
-Read-only toward the repo and the fixture (work on copies); scratchpad for temp outputs.
+Read-only toward the repo and the fixture (work on copies); YOUR private scratch for
+temp outputs — never another agent's dir, never `rm -rf` outside your own. You lens a
+frozen snapshot: if the tree is being edited underneath you, say so and stop — a torn
+read is an artifact, not a finding.
 Never touch anything in `{{protected}}`. Do not fix anything — findings only.
 
 ## Report back

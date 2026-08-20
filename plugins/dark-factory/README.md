@@ -180,3 +180,14 @@ a fresh repo walks the owner through writing that file from the template; see
    *(stop-gated)*
 
 Full doctrine: `skills/dark-factory/references/two-thread-contract.md`.
+
+## Changelog
+
+- **0.3.4** — task-declared verification tiers (`Verify:` in the task file; `full`
+  default / `diff` / `suite`) enforced by the commit gate escalate-never-downgrade
+  against the verdict's `verify_tier`; sprint batching (N disjoint tasks, one panel,
+  one verdict at the strictest declared tier, splits on any red).
+- **0.3.3** — a verdict must postdate the arming it ships under (`armed_epoch`).
+- **0.3.2** — `arm` + `recover` commands: planner-side recovery from an allowance death.
+- **0.3.1** — initialization routine (`init.sh` + `/dark-factory:init`).
+- **0.3.0** — dual-harness: one plugin directory serves Claude Code and Kimi Code.

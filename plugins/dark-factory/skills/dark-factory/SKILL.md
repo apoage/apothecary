@@ -49,7 +49,7 @@ Arming replaces prompt-discipline with mechanism on every high-risk action:
 | High-risk action | Hook | Effect |
 |---|---|---|
 | Write outside your lane | `lane_guard` (PreToolUse) | denied, both directions — you can't edit planner areas; a concurrent planner session can't edit code while you run |
-| `git commit` / `git tag` | `bash_gate` (PreToolUse) | denied unless `.dark-factory/verdicts/current.json` is green, fresh (< `{{guards.verdict_max_age_minutes}}` min) **and written after this arming** — verification is a precondition, not a habit, and a previous run's verdict is never yours |
+| `git commit` / `git tag` | `bash_gate` (PreToolUse) | denied unless `.dark-factory/verdicts/current.json` is green, fresh (< `{{guards.verdict_max_age_minutes}}` min), **written after this arming, and verified at the task's declared `Verify:` tier or higher** — verification is a precondition, not a habit, a previous run's verdict is never yours, and the tier never goes down (see below) |
 | `git push` | `bash_gate` (PreToolUse) | always denied (`{{guards.allow_push}}` = false); the owner pushes after review |
 | Ending the turn | `stop_gate` (Stop) | blocked while armed — you either work the queue or run the wrap-up ritual and disarm |
 | Everything you touch | `run_log` (PostToolUse) | appended to `.dark-factory/run-<date>.jsonl` for the morning reconcile |
@@ -113,8 +113,10 @@ the big model is a signal about the task file, not just about the model.
    path and `model: {{models.implementer}}` (harness permitting — see the model policy);
    the task file is the spec — don't re-derive scope. Parallelize independent tasks only
    when their files are disjoint.
-3. **Verify — never self-review.** The writing context is the weakest reviewer. Pick the
-   panel from `{{verification.risk_tiers}}` by the task's declared size/risk (default:
+3. **Verify — never self-review.** The writing context is the weakest reviewer. The
+   intensity is the task's declared `Verify:` tier (below — the planner sets it at
+   filing; absent = `full`). At `full`, pick the panel from
+   `{{verification.risk_tiers}}` by the task's declared size/risk (default:
    medium). `judge:<lens>` = one **`dark-factory-judge`** with that lens;
    `flow-verifier` = **`dark-factory-flow-verifier`**; UI-touching changes add
    **`dark-factory-visual-judge`** when `{{ui.enabled}}`. Run panel members in parallel,
@@ -131,6 +133,7 @@ the big model is a signal about the task file, not just about the model.
    {
      "task": "tasks/<file>.md",
      "green": true,
+     "verify_tier": "full",
      "panel": {"correctness": "no findings", "regression": "2 found, 2 fixed, re-verified"},
      "suite": "142 passed",
      "cycles": 2,
@@ -138,8 +141,12 @@ the big model is a signal about the task file, not just about the model.
      "written_at": "<ISO timestamp>"
    }
    ```
-   `cycles`/`models` only when `{{models}}` is set — a green verdict should say what
-   produced it.
+   `verify_tier` names the tier actually used (suite | diff | full) — the gate refuses a
+   commit whose tier is below the task's declared `Verify:` and a verdict without the
+   field. For a sprint batch add `"sprint_tasks": ["tasks/<a>.md", "tasks/<b>.md"]`
+   naming every task the verdict covers; the gate holds the batch to the strictest
+   declared tier among them. `cycles`/`models` only when `{{models}}` is set — a green
+   verdict should say what produced it.
    `green: true` only when every BLOCKER/MAJOR is fixed and re-verified. Never write a
    green verdict you cannot defend line by line — the gate trusts you; the planner audits.
 6. **Release ritual**: bump `{{paths.version_file}}` → entry in `{{paths.changelog}}` →
@@ -148,6 +155,50 @@ the big model is a signal about the task file, not just about the model.
 7. **Banner**: prepend the dated `> **STATUS (YYYY-MM-DD): SHIPPED as <version>**` line to
    the task file, remainders named. An unbannered shipped task is a lie in the queue.
 8. Next task.
+
+### Verification tiers — intensity is a declared property of the task
+
+Verification is ~80-90% of a run's spend; the fixed costs dominate absolutely on small
+tasks. The lever: **the PLANNER declares verification intensity at filing** as a
+`Verify:` line in the task file, and the gate enforces it — escalate-never-downgrade,
+in `bash_gate`, not in prose. The factory may always verify HARDER than declared; never
+less.
+
+| Tier | What runs | Who qualifies |
+|---|---|---|
+| `full` | Panel per `{{verification.risk_tiers}}` | **The default** (absent `Verify:` = full). Mandatory for anything touching production code, gate paths, security claims, or routing. |
+| `diff` | Panel scoped to the diff with drive-the-claims briefs, 1-2 lenses | Small changes whose risk lives entirely inside the diff |
+| `suite` | Suite green + planner audit, no panel | **Bookkeeping-class diffs only** (`tasks/`, `lore/`, queue grooms, changelogs) — *nothing the suite imports, pins, or executes*. A prose sentence can be pinned false by a test (a measured MAJOR: a zero-byte claim diff still paid full panels; a "only prose changed" ship still lost to a test), so the eligibility test is "invisible to the suite", not "only prose changed". |
+
+Rules that have no exceptions:
+- **The planner holds the key.** Only the planner writes `Verify:` at filing. The
+  factory never edits a task file's tier (the lane guard allows the implementer into
+  `tasks/` for banners — the tier line is not yours to touch), and a verdict naming a
+  tier below the declaration is denied by the gate with the reason named. The gate's
+  subject does not release itself — same law as the armed-session disarm refusal.
+- **Escalation is free, downgrade is a gate.** A task that turns out riskier than filed
+  gets verified at the higher tier and the verdict says so; a `Verify: full` task never
+  ships behind a `suite` verdict.
+- **No auto-tiering.** Diff size or path heuristics may PROPOSE a tier in the task-file
+  conversation, never set one. The tier is a planner act.
+
+### Sprint batching — N small tasks, one verification pass
+
+For N tasks with **disjoint file sets and independent failure modes** (stated in the
+sprint declaration), the fixed verification costs can be shared:
+
+1. The planner declares a sprint in `{{paths.queue}}`: the task list, the
+   disjoint-files statement, and the failure-mode independence claim.
+2. Dispatch, worktrees, and idempotency stay PER-TASK — a sprint shares verification,
+   never implementation. Run the implementer once per task as usual.
+3. ONE panel over the union diff (brief carries the diff↔task map), ONE suite run, ONE
+   verdict (`task` = first task, `sprint_tasks` = all), ONE release: one version bump,
+   one changelog entry, one commit, one tag.
+4. The verdict's `verify_tier` must satisfy the STRICTEST declared tier in the batch —
+   a batch is only as bookkeeping-class as its least bookkeeping-class member.
+5. **On any red, the panel names the task and the batch SPLITS.** The named task
+   re-verifies (and re-ships) on its own; a partially-red batch never ships. What
+   shipped green in the batch stays shipped.
 
 ## Stop conditions & wrap-up ritual
 

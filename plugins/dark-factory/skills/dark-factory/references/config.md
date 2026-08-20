@@ -31,7 +31,7 @@ The single place a project teaches the factory its specifics. Committed, planner
 | `guards.require_verdict` | `true` = commit/tag requires a green verdict file that is fresh AND newer than the current arming | keep `true` |
 | `guards.verdict_max_age_minutes` | How fresh the verdict must be at commit time. Independent of the arming rule: a verdict older than the arming is refused at any age | `60` |
 | `guards.halt_after_failures` | Failed fix→verify cycles before the task HALTs to a DECISIONS row | `3` |
-| `verification.risk_tiers` | Panel composition per declared task risk (`judge:<lens>`, `flow-verifier`) | see template |
+| `verification.risk_tiers` | Panel composition per declared task risk (`judge:<lens>`, `flow-verifier`). Governs the `full` tier; `Verify: diff` scopes the panel to the diff (1-2 lenses), `Verify: suite` runs suite + planner audit only | see template |
 | `models` | **Optional.** Model per subagent role, passed as the Agent tool's `model` at spawn. Omit the whole block and every subagent inherits the armed session's model — the pre-existing behaviour. Names are harness-specific; Kimi has no per-spawn override today, so there the block is advisory | see template |
 | `models.escalate_to` | Model a task escalates to after a failed fix→verify cycle | `"opus"` |
 
@@ -43,6 +43,13 @@ The single place a project teaches the factory its specifics. Committed, planner
   effort should scale with blast radius (XS filler ≠ strategic change). Tier `low` on
   small mechanical tasks, `high` on anything touching gates, locks, money, or data
   destruction.
+- **Why task-declared verification tiers (`Verify:`)?** Verification is most of a run's
+  spend and the fixed costs dominate on small tasks. The planner declares intensity at
+  filing (`full` default / `diff` / `suite`), the gate enforces escalate-never-downgrade
+  against the verdict's `verify_tier`, and `suite` is restricted to diffs invisible to
+  the suite — because a prose sentence can be pinned false by a test, "only prose
+  changed" is NOT safe; "invisible to the suite" is. Auto-tiering by diff size or path
+  heuristics is banned on principle: a heuristic may propose, never set.
 - **Why is the verdict freshness-checked?** A verdict older than the code it approves is
   a lie with a timestamp. The gate compares mtimes, not intentions — and since 0.3.3 it
   also refuses any verdict written before the current arming, because freshness alone

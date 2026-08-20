@@ -7,10 +7,29 @@ gated rows (noting why), and treats FILLER rows as parallel/anytime slices. Last
 
 ## Ready — take from the top
 
-| # | Task | Size | Note |
-|---|------|------|------|
-| 1 | `tasks/<date>-<slug>.md` | S–M | one line of orientation the loop needs before opening it |
-| 2 | `tasks/<date>-<slug>.md` | M | dependencies / what it unblocks |
+| # | Task | Size | Tier | Note |
+|---|------|------|------|------|
+| 1 | `tasks/<date>-<slug>.md` | S–M | full | one line of orientation the loop needs before opening it |
+| 2 | `tasks/<date>-<slug>.md` | M | full | dependencies / what it unblocks |
+
+The **Tier** column mirrors the `Verify:` line inside each task file (planner-set at
+filing; the task file is the truth, this column is orientation). `full` = panel per
+risk tier; `diff` = panel scoped to the diff; `suite` = suite green + planner audit —
+bookkeeping-class diffs only, nothing the suite imports, pins, or executes. Absent
+`Verify:` means `full`. The factory may verify harder, never softer.
+
+## Sprint — N tasks, one verification pass (optional)
+
+> **Sprint:** `tasks/<a>.md`, `tasks/<b>.md`, `tasks/<c>.md`
+> Disjoint file sets: <a touches only X, b only Y, c only Z>. Failure modes
+> independent: <statement>. Strictest declared tier: <tier> — the batch verifies at
+> this level, no exceptions.
+
+Only for tasks with disjoint file sets AND independent failure modes — both stated
+above; if either claim is false, the rows run solo. Dispatch stays per-task; the panel
+(one pass over the union diff, brief carries the diff↔task map), suite run, verdict,
+and release are shared. On any red the panel names the task and the batch splits — a
+partially-red batch never ships.
 
 ## Filler — anytime, parallel-safe
 

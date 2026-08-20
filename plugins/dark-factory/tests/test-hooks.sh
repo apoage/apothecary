@@ -72,15 +72,39 @@ expect_deny bash_gate.py '{"session_id":"claude-s2","cwd":"/tmp/df-test","tool_i
 echo "== verdict gate: green+fresh allows, stale denies =="
 mkdir -p "$PROJ/.dark-factory/verdicts"
 cat > "$PROJ/.dark-factory/verdicts/current.json" <<'EOF'
-{"task": "tasks/x.md", "green": true, "suite": "1 passed", "written_at": "2026-08-01T00:00:00Z"}
+{"task": "tasks/x.md", "green": true, "verify_tier": "full", "suite": "1 passed", "written_at": "2026-08-01T00:00:00Z"}
 EOF
 expect_allow bash_gate.py "$(printf "$S1" 'git commit -m x')" "green fresh verdict: commit allowed"
 touch -d '2 hours ago' "$PROJ/.dark-factory/verdicts/current.json"
 expect_deny bash_gate.py "$(printf "$S1" 'git commit -m x')" "stale verdict: commit denied"
 cat > "$PROJ/.dark-factory/verdicts/current.json" <<'EOF'
-{"task": "tasks/x.md", "green": false, "suite": "0", "written_at": "2026-08-01T00:00:00Z"}
+{"task": "tasks/x.md", "green": false, "verify_tier": "full", "suite": "0", "written_at": "2026-08-01T00:00:00Z"}
 EOF
 expect_deny bash_gate.py "$(printf "$S1" 'git commit -m x')" "red verdict: commit denied"
+
+echo "== verification tiers: escalate-never-downgrade =="
+# t-suite declares suite, t-diff declares diff, t-plain declares nothing (= full)
+printf '# task suite\n\nVerify: suite\n' > "$PROJ/tasks/t-suite.md"
+printf '# task diff\n\nVerify: diff\n' > "$PROJ/tasks/t-diff.md"
+printf '# task plain\n\nno Verify line here\n' > "$PROJ/tasks/t-plain.md"
+printf '{"task": "tasks/t-suite.md", "green": true, "verify_tier": "suite", "suite": "1 passed", "written_at": "now"}\n' > "$PROJ/.dark-factory/verdicts/current.json"
+expect_allow bash_gate.py "$(printf "$S1" 'git commit -m x')" "declared Verify: suite ships behind a suite-tier verdict"
+printf '{"task": "tasks/t-plain.md", "green": true, "verify_tier": "suite", "suite": "1 passed", "written_at": "now"}\n' > "$PROJ/.dark-factory/verdicts/current.json"
+expect_deny bash_gate.py "$(printf "$S1" 'git commit -m x')" "no Verify: line in the task = full; a suite verdict is a downgrade"
+run_hook bash_gate.py "$(printf "$S1" 'git commit -m x')"; printf '%s' "$OUT" | grep -q 'ESCALATE-NEVER-DOWNGRADE' \
+  && ok "  → denied as a downgrade (named), not as staleness" || bad "downgrade deny wording"
+printf '{"task": "tasks/t-suite.md", "green": true, "verify_tier": "full", "suite": "1 passed", "written_at": "now"}\n' > "$PROJ/.dark-factory/verdicts/current.json"
+expect_allow bash_gate.py "$(printf "$S1" 'git commit -m x')" "a RAISED tier is always legal (suite task, full verdict)"
+printf '{"task": "tasks/t-suite.md", "green": true, "suite": "1 passed", "written_at": "now"}\n' > "$PROJ/.dark-factory/verdicts/current.json"
+expect_deny bash_gate.py "$(printf "$S1" 'git commit -m x')" "verdict without verify_tier denied (cannot prove the tier it used)"
+run_hook bash_gate.py "$(printf "$S1" 'git commit -m x')"; printf '%s' "$OUT" | grep -q 'verify_tier' \
+  && ok "  → the deny names the missing field" || bad "missing-tier deny wording"
+printf '{"task": "tasks/t-suite.md", "sprint_tasks": ["tasks/t-diff.md"], "green": true, "verify_tier": "diff", "suite": "1 passed", "written_at": "now"}\n' > "$PROJ/.dark-factory/verdicts/current.json"
+expect_allow bash_gate.py "$(printf "$S1" 'git commit -m x')" "sprint batch verifying at its strictest declared tier (diff) allowed"
+printf '{"task": "tasks/t-suite.md", "sprint_tasks": ["tasks/t-diff.md"], "green": true, "verify_tier": "suite", "suite": "1 passed", "written_at": "now"}\n' > "$PROJ/.dark-factory/verdicts/current.json"
+expect_deny bash_gate.py "$(printf "$S1" 'git commit -m x')" "sprint held to its STRICTEST member (diff), not its first row (suite)"
+printf '{"task": "tasks/gone.md", "green": true, "verify_tier": "suite", "suite": "1 passed", "written_at": "now"}\n' > "$PROJ/.dark-factory/verdicts/current.json"
+expect_deny bash_gate.py "$(printf "$S1" 'git commit -m x')" "unreadable task file fails toward full, never toward trust"
 
 echo "== lane_guard: kimi (path) and claude (file_path) schemas =="
 expect_deny  lane_guard.py "$(printf "$W2" '/tmp/df-test/src/code.py')" "claude-shape: other session denied code lane"
@@ -187,7 +211,7 @@ echo "== the arming rule: a verdict from a previous run cannot ship this one =="
 # (tasks/2026-08-11-bug-verdict-predates-arming.md). A verdict must postdate the arming.
 mkdir -p "$RUIN/.dark-factory/verdicts"
 cat > "$RUIN/.dark-factory/verdicts/current.json" <<'EOF'
-{"task": "tasks/t1.md", "green": true, "suite": "1 passed", "written_at": "2026-08-10T21:00:00"}
+{"task": "tasks/t1.md", "green": true, "verify_tier": "full", "suite": "1 passed", "written_at": "2026-08-10T21:00:00"}
 EOF
 sleep 1   # mtime resolution: the verdict must be demonstrably OLDER than the arming
 run_hook bash_gate.py '{"session_id":"resumer","cwd":"/tmp/df-ruin","tool_name":"Bash","tool_input":{"command":"true # dark-factory-arm"}}'

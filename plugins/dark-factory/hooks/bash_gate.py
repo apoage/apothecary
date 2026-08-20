@@ -9,10 +9,17 @@ Three jobs:
      local) unless guards.allow_push is explicitly true in config.
   3. Commit gate. While armed, `git commit` / `git tag` require a GREEN verdict file
      (.dark-factory/verdicts/current.json) written after fan-out verification, fresh
-     by mtime, and NEWER THAN THE CURRENT ARMING. Missing / not-green / stale /
-     predating the arming → deny, fail closed. The arming clause is what stops a
+     by mtime, NEWER THAN THE CURRENT ARMING, and verified at the task's declared
+     tier OR HIGHER. Missing / not-green / stale / predating the arming / tier below
+     the declared one → deny, fail closed. The arming clause is what stops a
      previous run's leftover verdict (green, minutes old, written for work that
-     already shipped) from opening the gate for whatever the next session arms over.
+     already shipped) from opening the gate for whatever the next session arms over;
+     the tier clause is ESCALATE-NEVER-DOWNGRADE — verification intensity is a
+     task-declared property (`Verify:` in the task file, set by the planner at
+     filing, absent = full), the verdict names the tier actually used
+     (`verify_tier`), and the gate refuses anything lower. A raised tier is always
+     legal. The gate's subject does not release itself — only the planner edits
+     `Verify:`.
 
 Git detection is PARSED, not substring. The command text is split into segments
 (``&& || ; | newline``), each segment is lexed, and a gate only fires when an
@@ -124,6 +131,30 @@ def git_subcommands(cmd):
     return out
 
 
+#: verification tiers, weakest to strongest. `full` is the default and the
+#: fallback: a task file with no `Verify:` line, an unreadable task file, and a
+#: verdict naming no task at all all mean FULL — the gate must fail toward more
+#: verification, never less.
+_TIERS = {"suite": 0, "diff": 1, "full": 2}
+_VERIFY_RE = re.compile(r"^\s*Verify:\s*(suite|diff|full)\s*$",
+                        re.MULTILINE | re.IGNORECASE)
+
+
+def declared_tier(root, rel):
+    """The `Verify:` tier a task file declares, or "full" when it declares none.
+
+    REL is repo-relative (as the verdict's `task` field writes it). Unreadable
+    or absent file → "full": the declared tier is the planner's act, and a file
+    the gate cannot read must not lower the bar.
+    """
+    try:
+        with open(os.path.join(root, rel), encoding="utf-8") as f:
+            m = _VERIFY_RE.search(f.read())
+    except OSError:
+        return "full"
+    return m.group(1).lower() if m else "full"
+
+
 def main():
     data = read_input()
     cmd = (data.get("tool_input") or {}).get("command") or ""
@@ -226,6 +257,27 @@ def main():
             deny("dark-factory git gate: verdict file is STALE (%s min old, max %s) — "
                  "verification must be fresher than the code it approves. Re-run the "
                  "panel and rewrite the verdict file." % (int(age_min), max_age_min))
+
+        # ESCALATE-NEVER-DOWNGRADE (0.3.4). The verdict must name the tier actually
+        # used (`verify_tier`); a verdict that cannot say what verified it cannot
+        # open the gate. Sprint batches share one verdict across N tasks, so the
+        # declared bar is the STRICTEST tier among every task the verdict names
+        # (`task` + `sprint_tasks`) — a batch is only as bookkeeping-class as its
+        # least bookkeeping-class member.
+        used = verdict.get("verify_tier")
+        if used not in _TIERS:
+            deny("dark-factory git gate: the verdict does not name its verify_tier "
+                 "(suite | diff | full — the tier actually used for this task). A "
+                 "verdict that cannot say what verified it cannot open the gate; "
+                 "rewrite .dark-factory/verdicts/current.json with the field.")
+        task_files = [verdict.get("task", "")] + list(verdict.get("sprint_tasks") or [])
+        declared = max((declared_tier(root, t) for t in task_files),
+                       key=lambda t: _TIERS[t])
+        if _TIERS[used] < _TIERS[declared]:
+            deny("dark-factory git gate: verify_tier is %r but the task file declares "
+                 "Verify: %s — ESCALATE-NEVER-DOWNGRADE. The planner sets the tier at "
+                 "filing; re-verify at the declared tier (a RAISED tier is always "
+                 "legal) and rewrite the verdict file." % (used, declared))
     allow()
 
 

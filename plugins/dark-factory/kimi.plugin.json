@@ -1,8 +1,10 @@
 {
   "name": "dark-factory",
-  "version": "0.3.5",
-  "description": "The autonomous implementer loop — a ranked task queue, adversarial verification, a release ritual — behind hook-enforced guard rails: single-writer lane guard, fail-closed commit gate, no-push wall, stop-gate exit ritual. Dual-harness: one plugin directory serves both Claude Code (.claude-plugin/plugin.json) and Kimi Code (this manifest); both read the same .dark-factory/ state, so the two harnesses can run on the same repo.",
-  "author": { "name": "apoage" },
+  "version": "0.3.6",
+  "description": "The autonomous implementer loop \u2014 a ranked task queue, adversarial verification, a release ritual \u2014 behind hook-enforced guard rails: single-writer lane guard, fail-closed commit gate, no-push wall, stop-gate exit ritual. Tri-harness: one plugin directory serves Claude Code (.claude-plugin/plugin.json \u2014 which ZCode also probes), Kimi Code (this manifest), and ZCode; all read the same .dark-factory/ state, so the harnesses can run on the same repo.",
+  "author": {
+    "name": "apoage"
+  },
   "license": "MIT",
   "skills": "./skills/",
   "hooks": [

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """dark-factory lane guard — PreToolUse on Write|Edit|MultiEdit|NotebookEdit.
 
-Dual-harness (Claude Code / Kimi Code): the target file is read from
+Tri-harness (Claude Code / Kimi Code / ZCode): the target file is read from
 ``file_path`` / ``notebook_path`` (Claude) or ``path`` (Kimi) — see
 ``df_common.tool_file_path``.
 

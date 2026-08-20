@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""dark-factory stop gate — Stop hook. Dual-harness (Claude Code / Kimi Code).
+"""dark-factory stop gate — Stop hook. Tri-harness (Claude Code / Kimi Code / ZCode).
 
 While the factory is armed, the implementer session cannot simply end its turn:
 either there is queue work left (keep going), or only human-decision walls remain —
@@ -7,14 +7,16 @@ then the wrap-up ritual must run (banners, handoff doc, clean tree, wrap-up mess
 and the factory must DISARM before stopping. Turns the exit ritual from a convention
 into a mechanism.
 
-Blocking is portable: reason on stderr + exit 2, which both harnesses honor
+Blocking is portable: reason on stderr + exit 2, which every harness honors
 (upstream's ``{"decision": "block"}`` stdout JSON is the Claude-only form).
 
 Loop guard: Claude sends ``stop_hook_active`` so a gate can avoid trapping the
 session; Kimi does not, so this gate blocks ONCE per arming — it records
 ``stop_blocked`` in the state file (which the hooks own) and lets the next stop
 through. Arming again resets it. A gate that can trap a session forever is worse
-than a gate that asks once.
+than a gate that asks once. (ZCode caps Stop-block continuation at three per
+turn on the harness side — the block-once state guard stays authoritative
+regardless of which loop breaker fires first.)
 
 Other sessions stop freely.
 """

@@ -38,16 +38,18 @@
 and it only opens in the dark. Its entry in the apothecary's garden ledger; the working name
 stays dark-factory.*
 
-An autonomous implementer loop for Claude Code and Kimi Code: a ranked task queue, a
+An autonomous implementer loop for Claude Code, Kimi Code, and ZCode: a ranked task queue, a
 build agent, a risk-tiered panel of adversarial verifiers, and a release ritual — running
 unattended while the humans (and the planner thread) sleep. Extracted from a real project
 where it shipped a working queue end-to-end; rebuilt project-neutral, with the contract's
 high-risk rules moved from prompt-discipline into **hooks the loop cannot ignore**.
 
-**Dual-harness.** This directory is one plugin with two manifests: Claude Code reads
-`.claude-plugin/plugin.json`, Kimi Code reads `kimi.plugin.json` — same hooks, same skill,
-same `.dark-factory/` state, so a Claude session and a Kimi session can run against the
-same repo (whichever arms is the implementer of record; the other is held to planner
+**Tri-harness.** This directory is one plugin: Claude Code reads
+`.claude-plugin/plugin.json`, Kimi Code reads `kimi.plugin.json`, and ZCode probes the
+Claude manifest as a documented compatibility location and reads the same
+`hooks/hooks.json` — same hooks, same skill, same `.dark-factory/` state, so a session
+from any harness can run against the same repo (whichever arms is the implementer of
+record; the others are held to planner
 lanes). Install: Claude — via the apothecary marketplace; Kimi —
 `/plugins install https://github.com/apoage/apothecary` (or `/plugins marketplace` with
 this repo's `kimi-marketplace.json`).
@@ -183,6 +185,9 @@ Full doctrine: `skills/dark-factory/references/two-thread-contract.md`.
 
 ## Changelog
 
+- **0.3.6** — tri-harness: ZCode joins Claude Code + Kimi Code (same plugin
+  directory; ZCode probes the Claude manifest and the shared hooks.json), `run_log`
+  tags `zcode` entries via `ZCODE_PLUGIN_ROOT`, portability checks in the suite.
 - **0.3.5** — shared-mutable-state doctrine in the skill + agent briefs: freeze before
   you lens, private scratch per agent, no shared default paths, mutation harnesses
   fail closed on build failure; drift-guard checks in the suite.

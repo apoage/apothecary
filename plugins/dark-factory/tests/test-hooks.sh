@@ -106,9 +106,10 @@ expect_deny bash_gate.py "$(printf "$S1" 'git commit -m x')" "sprint held to its
 printf '{"task": "tasks/gone.md", "green": true, "verify_tier": "suite", "suite": "1 passed", "written_at": "now"}\n' > "$PROJ/.dark-factory/verdicts/current.json"
 expect_deny bash_gate.py "$(printf "$S1" 'git commit -m x')" "unreadable task file fails toward full, never toward trust"
 
-echo "== lane_guard: kimi (path) and claude (file_path) schemas =="
+echo "== lane_guard: kimi (path) and claude/zcode (file_path) schemas =="
 expect_deny  lane_guard.py "$(printf "$W2" '/tmp/df-test/src/code.py')" "claude-shape: other session denied code lane"
 expect_deny  lane_guard.py "$(printf "$W3" '/tmp/df-test/src/code.py')" "kimi-shape: other session denied code lane"
+expect_deny  lane_guard.py '{"session_id":"zcode-s9","cwd":"/tmp/df-test","tool_name":"Write","tool_input":{"file_path":"/tmp/df-test/src/code.py"}}' "zcode-shape (file_path): other session denied code lane"
 expect_allow lane_guard.py "$(printf "$W2" '/tmp/df-test/tasks/queue.md')" "other session allowed shared lane"
 expect_deny  lane_guard.py "$(printf "$W1" '/tmp/df-test/docs/design.md')" "implementer denied planner lane"
 expect_allow lane_guard.py "$(printf "$W1" '/tmp/df-test/docs/2026-08-01-handoff-x.md')" "implementer allowed handoff doc"
@@ -130,6 +131,11 @@ expect_allow run_log.py "$(printf "$S1" 'git status')" "run_log allows (bash)"
 LOG=$(ls "$PROJ"/.dark-factory/run-*.jsonl)
 grep -q '"harness": "kimi"' "$LOG" && grep -q '"role": "implementer"' "$LOG" && ok "run log entries written with harness+role" || bad "run log entries ($LOG: $(cat "$LOG" 2>/dev/null))"
 unset KIMI_CODE_HOME
+export ZCODE_PLUGIN_ROOT=/home/lukas/.zcode
+expect_allow run_log.py "$(printf "$S1" 'git status')" "run_log allows (zcode env)"
+LOG=$(ls "$PROJ"/.dark-factory/run-*.jsonl)
+grep -q '"harness": "zcode"' "$LOG" && ok "zcode-tagged entry in the one ledger (ZCODE_PLUGIN_ROOT marker)" || bad "zcode harness tag ($LOG)"
+unset ZCODE_PLUGIN_ROOT
 
 echo "== disarm =="
 expect_allow bash_gate.py "$(printf "$S1" 'true # dark-factory-disarm')" "disarm allowed"
@@ -331,6 +337,35 @@ N_SCRATCH=$(grep -li "private scratch" "$SCRIPT_DIR/../agents"/dark-factory-*.md
 N_DEST=$(grep -hi "scratchpad" "$SCRIPT_DIR/../agents"/dark-factory-*.md 2>/dev/null | grep -vic "never")
 [ "$N_DEST" = 0 ] && ok "no agent brief directs output to a shared session scratchpad" \
   || bad "agent brief uses the session scratchpad as a destination ($N_DEST lines)"
+
+echo "== tri-harness portability: manifests + hooks.json valid on all three =="
+# ZCode's manifest/hook rules are the strictest published set: name regex, component
+# paths inside the plugin root, exactly seven event names, valid matcher regexes,
+# command-type hooks only. What passes here loads on Claude and Kimi too (both accept
+# this same shape — it is the shared contract the dual-harness merge was built on).
+python3 - "$SCRIPT_DIR/.." <<'PY' && ok "manifests + hooks.json valid on Claude, Kimi, and ZCode" || bad "tri-harness manifest/hook schema"
+import json, pathlib, re, sys
+root = pathlib.Path(sys.argv[1])
+pj = json.load(open(root / ".claude-plugin" / "plugin.json"))
+kj = json.load(open(root / "kimi.plugin.json"))
+assert pj["version"] == kj["version"], "manifest version drift"
+for m in (pj, kj):
+    assert re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,127}", m["name"]), m["name"]
+for comp in (pj.get("skills"), pj.get("commands")):
+    if comp:
+        for d in ([comp] if isinstance(comp, str) else comp):
+            assert not pathlib.Path(d).is_absolute(), d
+hooks = json.load(open(root / "hooks" / "hooks.json"))["hooks"]
+events = {"SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest",
+          "PostToolUse", "PostToolUseFailure", "Stop"}
+assert set(hooks) <= events, set(hooks) - events
+for groups in hooks.values():
+    for g in groups:
+        re.compile(g.get("matcher", ""))   # an invalid regex never matches anywhere
+        for hk in g["hooks"]:
+            assert hk["type"] == "command" and hk["command"], hk
+            assert "${CLAUDE_PLUGIN_ROOT}" in hk["command"], hk["command"]
+PY
 
 # recovery's release valve: a session that is NOT the dead implementer may disarm
 expect_allow bash_gate.py "$(printf "$RUIN_S" Bash command 'true # dark-factory-disarm')" "recover can disarm a dead run"

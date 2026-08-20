@@ -16,15 +16,18 @@ project root. Any `{{key}}` in this skill or the `dark-factory-*` agents is a va
 resolving from that file (dotted = nested: `{{commands.test}}`, `{{paths.queue}}`).
 Read the config before anything else, every run.
 
-**Dual-harness.** This one plugin serves both Claude Code (`.claude-plugin/plugin.json`)
-and Kimi Code (`kimi.plugin.json`) — same hooks, same `.dark-factory/` state. A Claude
-session and a Kimi session can run against the SAME project: whichever session arms
-becomes the implementer of record, and the lane guard holds the other to planner lanes
-on either harness. The `dark-factory-*` agent files ship in `agents/` for both; if your
-harness doesn't surface plugin agents, spawn an ordinary subagent with the same brief —
-the task-file path for implementation; for judges the lens, the diff, and "assume the
-change cut a new hole and go find it". Hooks are fail-open on both harnesses: they are
-lane markings, never the security boundary.
+**Tri-harness.** This one plugin serves Claude Code, Kimi Code, and ZCode — same
+hooks, same `.dark-factory/` state. Claude reads `.claude-plugin/plugin.json`; Kimi
+reads `kimi.plugin.json`; ZCode probes `.claude-plugin/plugin.json` as a documented
+compatibility location and reads the same `hooks/hooks.json`, so no third manifest
+exists to drift. Sessions from any of the three harnesses can run against the SAME
+project: whichever session arms becomes the implementer of record, and the lane guard
+holds the others to planner lanes on whichever harness they use. The
+`dark-factory-*` agent files ship in `agents/`; if your harness doesn't surface
+plugin agents, spawn an ordinary subagent with the same brief — the task-file path
+for implementation; for judges the lens, the diff, and "assume the change cut a new
+hole and go find it". Hooks are fail-open on every harness: they are lane markings,
+never the security boundary.
 
 ## First run — setup (only if `.dark-factory/config.json` is missing)
 
@@ -83,8 +86,9 @@ the brief in your wrap-up once that work ships or lands in a DECISIONS row.
 parameter at spawn time. **If the key is absent, spawn with no model override** — the
 subagent inherits this session's model, which is the behaviour every project had before
 this key existed. Model names are harness-specific (Claude: `sonnet`/`opus`/`haiku`;
-Kimi: its own names — and Kimi's Agent tool has no per-spawn model override today, so
-there the policy is advisory and subagents inherit the session model).
+Kimi: its own names). Kimi's and ZCode's Agent tools take no per-spawn model override
+today, so on those harnesses the policy is advisory and subagents inherit the session
+model.
 
 | Cycle on a task | Implementer | Verification panel |
 |---|---|---|
@@ -241,8 +245,8 @@ load-bearing features on guessed decisions; seed the DECISIONS row instead. Then
 2. A dated handoff doc in `{{paths.handoff_dir}}`, committed with the work.
 3. Clean tree. Nothing pushed.
 4. **Disarm**: run `true # dark-factory-disarm`. The stop gate will not let you end the
-   turn armed — that is by design, not an obstacle. (Kimi: the gate blocks once per
-   arming, then lets a stop through rather than risking a trapped session.)
+   turn armed — that is by design, not an obstacle. (Kimi and ZCode: the gate blocks
+   once per arming, then lets a stop through rather than risking a trapped session.)
 
 That is the clean exit. The dirty one — your model allowance runs out with the reset hours
 away, or the session is killed mid-task — leaves the factory armed with unverified work in

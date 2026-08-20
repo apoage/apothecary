@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""dark-factory bash gate — PreToolUse on Bash. Dual-harness (Claude Code / Kimi Code).
+"""dark-factory bash gate — PreToolUse on Bash. Tri-harness (Claude Code / Kimi Code / ZCode).
 
 Three jobs:
   1. Arm / disarm. `true # dark-factory-arm` records THIS session as the implementer

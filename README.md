@@ -28,7 +28,7 @@ experiment. `dark-factory` is what runs while the apothecary sleeps.
 
 Update later with `/plugin marketplace update apothecary`.
 
-**Kimi Code:** `dark-factory` is dual-harness — the same plugin directory carries a
+**Kimi Code:** `dark-factory` is tri-harness — the same plugin directory carries a
 `kimi.plugin.json` alongside the Claude manifest:
 
 ```
@@ -36,6 +36,12 @@ Update later with `/plugin marketplace update apothecary`.
 ```
 
 (or `/plugins install https://github.com/apoage/apothecary` for the repo directly).
+
+**ZCode:** add this repo as a marketplace (Settings → Plugin Management → Discover →
+**+**, `apoage/apothecary`) and install `dark-factory`. ZCode probes the Claude
+manifest natively and reads the same `hooks/hooks.json` and `.dark-factory/` state —
+the tri-harness loop is proven live on ZCode end-to-end (2026-08-20, every gate
+fired).
 
 ## Layout
 
@@ -46,7 +52,7 @@ plugins/
   feverfew/     .claude-plugin/plugin.json   skills/feverfew/SKILL.md
   erythroxy/    .claude-plugin/plugin.json   skills/erythroxy/SKILL.md
   chandoff/     .claude-plugin/plugin.json   skills/chandoff/SKILL.md
-  dark-factory/ .claude-plugin/plugin.json + kimi.plugin.json   ← dual-harness
+  dark-factory/ .claude-plugin/plugin.json + kimi.plugin.json   ← tri-harness (Claude Code · Kimi Code · ZCode)
                 skills/dark-factory/SKILL.md (+references/)
                 agents/dark-factory-{implementer,judge,flow-verifier,visual-judge}.md
                 hooks/hooks.json + lane_guard.py bash_gate.py stop_gate.py run_log.py

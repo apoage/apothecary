@@ -52,7 +52,11 @@ from any harness can run against the same repo (whichever arms is the implemente
 record; the others are held to planner
 lanes). Install: Claude — via the apothecary marketplace; Kimi —
 `/plugins install https://github.com/apoage/apothecary` (or `/plugins marketplace` with
-this repo's `kimi-marketplace.json`).
+this repo's `kimi-marketplace.json`); ZCode — add `apoage/apothecary` as a marketplace
+(Settings → Plugin Management → Discover → **+**) and install `dark-factory`.
+Proven live end-to-end on all three harnesses: the ZCode port ran the full loop on
+2026-08-20 and every gate fired — fail-closed commit, tier check, push wall, lane
+guard, stop gate.
 
 ## What's in the box
 
@@ -185,6 +189,12 @@ Full doctrine: `skills/dark-factory/references/two-thread-contract.md`.
 
 ## Changelog
 
+- **0.3.7** — ZCode self-validation: the tri-harness loop proven live end-to-end on the
+  third harness — every gate fired in production (fail-closed commit, tier check, push
+  wall, lane guard both directions, stop gate), the session-start arm rule confirmed by
+  live probe, cross-harness coexistence checked. Harness note: when judge spawns die on
+  model-request timeouts, the doctrine-sanctioned ordinary-subagent re-verify is the
+  fallback. Docs-only release — no code changed since 0.3.6.
 - **0.3.6** — tri-harness: ZCode joins Claude Code + Kimi Code (same plugin
   directory; ZCode probes the Claude manifest and the shared hooks.json), `run_log`
   tags `zcode` entries via `ZCODE_PLUGIN_ROOT`, portability checks in the suite.
